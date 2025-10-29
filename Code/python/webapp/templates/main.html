@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI+电力电子 - 主界面</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; 
+      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); 
+      color: #1a1a1a; 
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 20px 0;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #3a86ff, #7a5cff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header p {
+      margin: 10px 0 0 0;
+      color: #666666;
+      font-size: 1.1em;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    
+    .function-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      max-width: 1200px;
+      width: 100%;
+    }
+    
+    .function-card {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+      height: 420px; /* 统一卡片高度，确保长宽一致 */
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .function-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(135deg, #3a86ff, #7a5cff);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+    
+    .function-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(58, 134, 255, 0.15);
+      border-color: #3a86ff;
+    }
+    
+    .function-card:hover::before {
+      transform: scaleX(1);
+    }
+    
+    .function-icon {
+      font-size: 3em;
+      margin-bottom: 20px;
+      display: block;
+    }
+    
+    .function-title {
+      font-size: 1.5em;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #1a1a1a;
+    }
+    
+    .function-description {
+      color: #666666;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      flex: 1; /* 描述占位，按钮贴底 */
+    }
+    
+    .function-button {
+      background: linear-gradient(135deg, #3a86ff, #7a5cff);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+    
+    .function-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(58, 134, 255, 0.3);
+    }
+    
+    .status-bar {
+      background: #ffffff;
+      border-top: 1px solid #d0d0d0;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9em;
+      color: #666666;
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4caf50;
+    }
+    
+    .logout-btn {
+      background: none;
+      border: 1px solid #d0d0d0;
+      color: #666666;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .logout-btn:hover {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+    
+    /* 定位：桌面端将 3 列布局，第二行两卡片跨两列并居中 */
+    .card-ppo { grid-column: 1; grid-row: 1; }
+    .card-sim { grid-column: 2; grid-row: 1; }
+    .card-eda { grid-column: 3; grid-row: 1; }
+    /* 第二行中部卡片：与上排单列同等宽度（动态），水平居中 */
+    .card-ctrl { 
+      grid-column: 1 / 3; 
+      grid-row: 2; 
+      justify-self: center; 
+      /* 跨两列区域(两列+1个30px间距)中，单列宽度 = (区域宽 - 30px)/2 */
+      width: calc((100% - 30px) / 2);
+    }
+    .card-chat { 
+      grid-column: 2 / 4; 
+      grid-row: 2; 
+      justify-self: center; 
+      /* 与上方一致，确保与单列卡片等宽 */
+      width: calc((100% - 30px) / 2);
+    }
+
+    @media (max-width: 768px) {
+      .function-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      /* 移动端恢复自然流 */
+      .function-grid > .function-card { grid-column: auto; grid-row: auto; justify-self: stretch; max-width: none; }
+      
+      .function-card {
+        padding: 20px;
+      }
+      
+      .header h1 {
+        font-size: 2em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>AI+电力电子</h1>
+    <p>智能参数设计与仿真验证平台</p>
+  </div>
+  
+  <div class="main-content">
+    <div class="function-grid">
+      <!-- 参数设计功能 -->
+      <div class="function-card card-ppo" onclick="startParameterDesign()">
+        <span class="function-icon">⚙️</span>
+        <h3 class="function-title">参数设计</h3>
+        <p class="function-description">
+          使用AI算法自动设计Buck变换器的关键参数，包括电感、电容、开关频率等，确保最优性能。
+        </p>
+        <button class="function-button">开始参数设计</button>
+      </div>
+      
+      <!-- 仿真验证功能 -->
+      <div class="function-card card-sim" onclick="startSimulation()">
+        <span class="function-icon">🔬</span>
+        <h3 class="function-title">仿真验证</h3>
+        <p class="function-description">
+          在MATLAB/Simulink环境中运行仿真，验证设计的Buck变换器性能，包括效率、稳定性等指标。
+        </p>
+        <button class="function-button">开始仿真验证</button>
+      </div>
+      
+      <!-- 原理图/PCB自动设计功能 -->
+      <div class="function-card card-eda" onclick="startEDA()">
+        <span class="function-icon">🔌</span>
+        <h3 class="function-title">原理图/PCB自动设计</h3>
+        <p class="function-description">
+          基于设计参数与对话获得的器件选型，自动生成原理图与PCB初版，辅助完成器件选型与布局布线的初步方案。
+        </p>
+        <button class="function-button">开始原理图/PCB设计</button>
+      </div>
+      
+      <!-- 控制器代码自动生成功能（与智能对话对称，仅设计按键与描述，功能后续添加） -->
+      <div class="function-card card-ctrl" onclick="startControllerCode()">
+        <span class="function-icon">💻</span>
+        <h3 class="function-title">控制器代码自动生成</h3>
+        <p class="function-description">
+          基于已设计参数与交互需求，生成/编辑控制器代码模板（如嵌入式C、Simulink控制逻辑等），便于快速部署与二次开发。
+        </p>
+        <button class="function-button">开始代码编写</button>
+      </div>
+
+      <!-- 跳转对话功能 -->
+      <div class="function-card card-chat" onclick="goToChat()">
+        <span class="function-icon">💬</span>
+        <h3 class="function-title">智能对话</h3>
+        <p class="function-description">
+          与AI助手进行智能对话，获取电力电子设计建议、技术咨询和问题解答，获得专业的技术支持。
+        </p>
+        <button class="function-button">开始对话</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot"></span>
+      <span>系统运行正常</span>
+    </div>
+    <div class="status-item">
+      <span>用户身份: {% if session.role == 'admin' %}管理员{% else %}普通用户{% endif %}</span>
+      <button class="logout-btn" onclick="goToDatabase()">数据库维护</button>
+      <button class="logout-btn" onclick="logout()">退出登录</button>
+    </div>
+  </div>
+
+  <script>
+    // 参数设计功能（映射到 ppo -> PPO.py）
+    function startParameterDesign() {
+      window.location.href = '/run?task=ppo';
+    }
+    
+    // 仿真验证功能（映射到 run_sim -> run_simulink.py）
+    function startSimulation() {
+      window.location.href = '/run?task=run_sim';
+    }
+    
+    // 原理图/PCB自动设计
+    function startEDA() {
+      window.location.href = '/run?task=eda';
+    }
+    
+    // 控制器代码编写自动生成：确认后跳转到外部页面
+    function startControllerCode() {
+      const url = 'https://www.coze.cn/space/7546496844034162739/ui-builder-preview/7546449200230367284/pc/Iro46ri3E9';
+      const ok = confirm('是否前往控制器代码自动编写页面？');
+      if (ok) {
+        window.location.href = url;
+      }
+    }
+    
+    // 跳转对话功能
+    function goToChat() {
+      const url = 'https://www.coze.cn/space/7546496844034162739/ui-builder-preview/7546449200230367284/pc/home';
+      const ok = confirm('是否进入对话页面？');
+      if (ok) {
+        window.location.href = url;
+      }
+    }
+    
+    // 数据库维护
+    function goToDatabase() {
+      window.location.href = '/database_manager';
+    }
+    
+    // 退出登录
+    function logout() {
+      if (confirm('确定要退出登录吗？')) {
+        window.location.href = '/logout';
+      }
+    }
+  </script>
+</body>
+</html>

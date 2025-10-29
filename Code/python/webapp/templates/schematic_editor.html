@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>原理图编辑器 - 双相交错并联Buck设计</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; 
+      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); 
+      color: #1a1a1a; 
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 20px 0;
+      text-align: center;
+      position: relative;
+    }
+    
+    .back-btn {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      color: #1a1a1a;
+      border: 1px solid #d0d0d0;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .back-btn:hover {
+      background: #f5f5f5;
+      border-color: #999999;
+      transform: translateY(-50%) translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #3a86ff, #7a5cff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header p {
+      margin: 10px 0 0 0;
+      color: #666666;
+      font-size: 1.1em;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      gap: 20px;
+    }
+    
+    .editor-panel {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .editor-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .toolbar-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-right: auto;
+    }
+    
+    .editor-btn {
+      background: transparent;
+      color: #1a1a1a;
+      border: 1px solid #d0d0d0;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    
+    .editor-btn:hover {
+      background: #f5f5f5;
+      border-color: #999999;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .editor-btn:disabled {
+      background: #f5f5f5;
+      color: #999;
+      border-color: #e0e0e0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .editor-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .file-info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      font-size: 0.9em;
+      color: #666;
+    }
+    
+    .file-path {
+      font-family: 'Consolas', 'Monaco', monospace;
+      color: #1976d2;
+    }
+    
+    .schematic-editor-area {
+      flex: 1;
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .editor-textarea {
+      flex: 1;
+      width: 100%;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 15px;
+      border: none;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      resize: none;
+      outline: none;
+    }
+    
+    .output-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    
+    .output-log .log-success { color: #4caf50; }
+    .output-log .log-error { color: #f44336; }
+    .output-log .log-warning { color: #ff9800; }
+    .output-log .log-info { color: #2196f3; }
+    
+    .status-bar {
+      background: #f5f5f5;
+      border-top: 1px solid #d0d0d0;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9em;
+      color: #666;
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4caf50;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* 加载提示 */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    
+    .loading-overlay.active {
+      display: flex;
+    }
+    
+    .loading-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1976d2;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/run?task=eda" class="back-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      返回功能选择
+    </a>
+    <h1>🔧 原理图编辑器</h1>
+    <p>双相交错并联Buck - 自动设计演示</p>
+  </div>
+
+  <div class="main-content">
+    <!-- 编辑器面板 -->
+    <div class="editor-panel">
+      <div class="editor-toolbar">
+        <div class="toolbar-title">📝 原理图文件编辑器</div>
+        <button class="editor-btn" onclick="getSchematicCode()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 5px;">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
+          原理图代码获取
+        </button>
+        <button class="editor-btn" onclick="openKicad()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 5px;">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="9" x2="15" y2="9"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          打开KiCad
+        </button>
+        <button class="editor-btn" onclick="openSchematicEditor()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 5px;">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          打开原理图编辑器
+        </button>
+        <button class="editor-btn" onclick="saveSchematic()" id="saveBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 5px;">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          保存文件
+        </button>
+      </div>
+
+      <div class="file-info-bar">
+        <div>
+          <span>文件: </span>
+          <span class="file-path" id="filePath">Two_Phase_Buck.kicad_sch</span>
+        </div>
+        <div id="fileStats">加载中...</div>
+      </div>
+
+      <div class="editor-content">
+        <div class="schematic-editor-area">
+          <textarea class="editor-textarea" id="schematicContent" placeholder="正在加载原理图文件..."></textarea>
+        </div>
+
+        <!-- 输出日志 -->
+        <div class="output-log" id="outputLog">
+          <div class="log-info">⏳ 正在加载原理图文件...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div class="status-dot"></div>
+      <span id="statusText">编辑器初始化中...</span>
+    </div>
+    <div>
+      <span>项目路径: EDA/Two_Phase_Buck/</span>
+    </div>
+  </div>
+
+  <!-- 加载提示 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <div id="loadingText">处理中...</div>
+    </div>
+  </div>
+
+  <script>
+    let originalContent = '';
+    let isModified = false;
+
+    function addLog(message, type = 'info') {
+      const log = document.getElementById('outputLog');
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-${type}`;
+      logEntry.textContent = message;
+      log.appendChild(logEntry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateStatus(text) {
+      document.getElementById('statusText').textContent = text;
+    }
+
+    function updateFileStats(content) {
+      const lines = content.split('\n').length;
+      const size = new Blob([content]).size;
+      const sizeKB = (size / 1024).toFixed(1);
+      const modified = isModified ? ' | ✎ 已修改' : '';
+      document.getElementById('fileStats').textContent = `${lines} 行 | ${sizeKB} KB${modified}`;
+    }
+
+    // 跳转到原理图代码获取页面
+    function getSchematicCode() {
+      addLog('🔗 正在跳转到原理图代码获取工具...', 'info');
+      window.open('https://www.coze.cn/space/7546496844034162739/ui-builder-preview/7546449200230367284/pc/VA2TnF9bon', '_blank');
+      addLog('✓ 已在新标签页中打开代码获取工具', 'success');
+    }
+
+    function showLoading(text = '处理中...') {
+      document.getElementById('loadingText').textContent = text;
+      document.getElementById('loadingOverlay').classList.add('active');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('active');
+    }
+
+    // 监听文本变化
+    document.addEventListener('DOMContentLoaded', function() {
+      const textarea = document.getElementById('schematicContent');
+      textarea.addEventListener('input', function() {
+        if (textarea.value !== originalContent) {
+          isModified = true;
+          updateFileStats(textarea.value);
+        } else {
+          isModified = false;
+          updateFileStats(textarea.value);
+        }
+      });
+    });
+
+    // 加载原理图文件
+    async function loadSchematic() {
+      try {
+        addLog('📄 正在读取原理图文件...', 'info');
+        
+        const response = await fetch('/api/eda/get_schematic_content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          originalContent = result.content;
+          document.getElementById('schematicContent').value = result.content;
+          updateFileStats(result.content);
+          addLog('✓ 原理图文件加载成功', 'success');
+          addLog(`✓ 文件路径: ${result.file_path}`, 'info');
+          updateStatus('编辑器就绪');
+        } else {
+          addLog(`✗ 加载失败: ${result.error}`, 'error');
+          updateStatus('加载失败');
+        }
+      } catch (err) {
+        addLog(`✗ 请求失败: ${err.message}`, 'error');
+        updateStatus('加载失败');
+      }
+    }
+
+    // 打开KiCad
+    async function openKicad() {
+      addLog('🚀 正在启动KiCad软件...', 'info');
+      showLoading('正在打开KiCad...');
+      
+      try {
+        const response = await fetch('/api/eda/open_schematic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.status === 'success') {
+          addLog('✓ KiCad软件已打开', 'success');
+          addLog(`✓ 项目路径: ${result.project_path}`, 'info');
+        } else {
+          addLog(`✗ 打开失败: ${result.error}`, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        addLog(`✗ 请求失败: ${err.message}`, 'error');
+      }
+    }
+
+    // 打开原理图编辑器（只打开eeschema，不打开KiCad或PCB）
+    async function openSchematicEditor() {
+      addLog('📐 正在打开原理图编辑器...', 'info');
+      showLoading('正在打开原理图编辑器...');
+      
+      try {
+        const response = await fetch('/api/eda/open_schematic_only', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.status === 'success') {
+          addLog('✓ 原理图编辑器已打开', 'success');
+          addLog(`✓ 文件路径: ${result.schematic_path}`, 'info');
+          addLog('💡 提示：编辑器窗口已全屏显示', 'info');
+        } else {
+          addLog(`✗ 打开失败: ${result.error}`, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        addLog(`✗ 请求失败: ${err.message}`, 'error');
+      }
+    }
+
+    // 保存原理图
+    async function saveSchematic() {
+      const content = document.getElementById('schematicContent').value;
+      
+      if (!isModified) {
+        addLog('ℹ 文件未修改，无需保存', 'info');
+        return;
+      }
+      
+      addLog('💾 正在保存原理图文件...', 'info');
+      showLoading('正在保存文件...');
+      
+      try {
+        const response = await fetch('/api/eda/save_schematic_content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: content })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.status === 'success') {
+          originalContent = content;
+          isModified = false;
+          updateFileStats(content);
+          addLog('✓ 文件保存成功', 'success');
+          addLog(`✓ 文件路径: ${result.file_path}`, 'info');
+          addLog(`✓ 备份路径: ${result.backup_path}`, 'info');
+          addLog('💡 提示：可在KiCad中重新加载文件查看更改', 'info');
+          alert('✓ 保存成功！\n\n文件已保存，可在KiCad中查看更改。');
+        } else {
+          addLog(`✗ 保存失败: ${result.error}`, 'error');
+          alert(`保存失败: ${result.error}`);
+        }
+      } catch (err) {
+        hideLoading();
+        addLog(`✗ 保存请求失败: ${err.message}`, 'error');
+        alert(`保存请求失败: ${err.message}`);
+      }
+    }
+
+    // 页面加载完成后自动加载文件
+    window.addEventListener('load', async () => {
+      addLog('🎉 原理图编辑器页面加载完成', 'success');
+      await loadSchematic();
+    });
+
+    // 离开页面前提示
+    window.addEventListener('beforeunload', function (e) {
+      if (isModified) {
+        e.preventDefault();
+        e.returnValue = '您有未保存的更改，确定要离开吗？';
+        return e.returnValue;
+      }
+    });
+
+    // 快捷键支持
+    document.addEventListener('keydown', function(e) {
+      // Ctrl+S 保存
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveSchematic();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1592 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ title }}</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; 
+      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); 
+      color: #1a1a1a; 
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 20px 0;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #3a86ff, #7a5cff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header p {
+      margin: 10px 0 0 0;
+      color: #666666;
+      font-size: 1.1em;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    
+    .control-panel {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .control-btn {
+      background: #e3f2fd;
+      color: #1976d2;
+      border: 1px solid #90caf9;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    
+    .control-btn:hover {
+      background: #bbdefb;
+      border-color: #64b5f6;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(25, 118, 210, 0.15);
+    }
+    
+    .control-btn:disabled {
+      background: #f5f5f5;
+      color: #999;
+      border-color: #e0e0e0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .control-btn.danger {
+      background: #fff3e0;
+      color: #e65100;
+      border-color: #ffcc80;
+    }
+    
+    .control-btn.danger:hover {
+      background: #ffe0b2;
+      border-color: #ffb74d;
+      box-shadow: 0 4px 8px rgba(230, 81, 0, 0.15);
+    }
+    
+    #btn-return-selection:hover {
+      background: #f5f5f5 !important;
+      border-color: #999999 !important;
+      color: #1a1a1a !important;
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      border: 1px solid #d0d0d0;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #999;
+    }
+    
+    .status-dot.running {
+      background: #4caf50;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.stopped {
+      background: #ff6b6b;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .output-container {
+      /* 固定大小的运行输出窗口，高度固定，内容超出滚动查看 */
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 50vh;
+      max-height: 50vh;
+      min-height: 50vh;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .output-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .clear-btn {
+      background: none;
+      border: 1px solid #d0d0d0;
+      color: #666666;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .clear-btn:hover {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+    
+    .output-content {
+      /* 内容超出滚动查看，固定高度填充容器剩余空间 */
+      flex: 1;
+      background: #f8f8f8;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #1a1a1a;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .input-container {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .input-field {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      color: #1a1a1a;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+    }
+    
+    .input-field:focus {
+      outline: none;
+      border-color: #3a86ff;
+    }
+    
+    .send-btn {
+      background: #3a86ff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .send-btn:hover {
+      background: #2a6bcc;
+    }
+    
+    .send-btn:disabled {
+      background: #e0e0e0;
+      color: #999;
+      cursor: not-allowed;
+    }
+    
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: none;
+      border: 1px solid #d0d0d0;
+      color: #666666;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .back-btn:hover {
+      border-color: #3a86ff;
+      color: #3a86ff;
+    }
+    
+    .task-info {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    
+    .task-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+    
+    .task-description {
+      color: #666666;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .task-selection-panel {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .task-selection-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #1a1a1a;
+    }
+    
+    .task-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+    }
+    
+    .task-option {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    
+    .task-option:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(58, 134, 255, 0.15);
+      border-color: #3a86ff;
+    }
+    
+    .task-option-icon {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    
+    .task-option-title {
+      font-size: 1.35em;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #1a1a1a;
+    }
+    
+    .task-option-description {
+      font-size: 14px;
+      color: #666666;
+      line-height: 1.6;
+    }
+    
+    .preview-panel {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .preview-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .preview-select {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      color: #1a1a1a;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    .preview-label {
+      font-size: 12px;
+      color: #666666;
+    }
+    
+    /* 移除缩放滑块相关样式 */
+    
+    .preview-content { text-align: center; }
+    .preview-container { width: 100%; max-height: 60vh; overflow: auto; border: 1px solid #d0d0d0; border-radius: 8px; background:#f8f8f8; position: relative; }
+    .preview-image { width: 100%; height: auto; max-height: 60vh; object-fit: contain; display: block; background:#f8f8f8; }
+    /* 全屏样式，避免黑屏：容器与图片铺满视口并保持等比 */
+    .preview-container:fullscreen { width: 100vw; height: 100vh; max-height: none; overflow: hidden; background:#f8f8f8; }
+    .preview-image:fullscreen { width: 100vw; height: 100vh; max-height: none; object-fit: contain; background:#f8f8f8; }
+
+    /* 自定义参数弹窗 */
+    .dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .dialog { background: #ffffff; border: 1px solid #d0d0d0; border-radius: 12px; width: min(560px, 92vw); padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .dialog-title { font-weight: 700; font-size: 18px; margin-bottom: 12px; color: #1a1a1a; }
+    .dialog-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dialog-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .dialog-label { font-size: 12px; color: #666666; }
+    .dialog-input { padding: 10px 12px; border-radius: 8px; border: 1px solid #d0d0d0; background: #ffffff; color: #1a1a1a; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+    .btn-secondary { background: #e0e0e0; color: #1a1a1a; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+    .btn-primary { background: #3a86ff; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+    
+    @media (max-width: 768px) {
+      .control-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .control-btn {
+        width: 100%;
+      }
+      
+      .input-container {
+        flex-direction: column;
+      }
+      
+      .back-btn {
+        position: static;
+        margin-bottom: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="back-btn" onclick="goBack()">← 返回主界面</button>
+  
+  <div class="header">
+    <h1>AI+电力电子</h1>
+    <p id="task-title">{% if task == 'ppo' %}参数设计{% elif task == 'run_sim' %}仿真验证{% elif task == 'run_sim_def' %}自定义仿真{% elif task == 'eda' %}原理图/PCB自动设计{% else %}运行任务{% endif %}</p>
+  </div>
+  
+  <div class="main-content">
+    <div class="task-info">
+      <div class="task-title">
+        {% if task == 'ppo' %}
+          参数设计任务
+        {% elif task == 'run_sim' or task == 'run_sim_def' %}
+          仿真验证任务
+        {% elif task == 'eda' %}
+          原理图/PCB自动设计任务
+        {% else %}
+          运行任务
+        {% endif %}
+      </div>
+      <div class="task-description">
+        {% if task == 'ppo' %}
+          使用PPO算法自动设计Buck变换器关键参数，包括电感、电容、开关频率等，确保最优性能。（在完整运行后可以进行器件选型）
+        {% elif task == 'run_sim' or task == 'run_sim_def' %}
+          在MATLAB/Simulink环境中运行仿真，验证设计的Buck变换器性能，包括效率、稳定性等指标。
+        {% elif task == 'eda' %}
+          自动生成原理图与PCB初版文件，支持参数驱动的器件选型与基础布局布线建议。
+        {% else %}
+          正在运行指定的任务。
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- 任务选择面板 -->
+    <div class="task-selection-panel" id="taskSelectionPanel">
+      <div class="task-selection-title">请选择具体任务类型：</div>
+      <div class="task-options">
+        {% if task == 'ppo' %}
+          <!-- 参数设计选项（ppo） -->
+          <div class="task-option" onclick="selectTaskType('ppo')">
+            <div class="task-option-title">双线交错并联Buck拓扑自动设计</div>
+            <div class="task-option-description">使用标准双相交错并联Buck拓扑进行自动参数设计</div>
+          </div>
+          <div class="task-option" onclick="selectTaskType('run_sim_def')">
+            <div class="task-option-title">自定义拓扑参数设计</div>
+            <div class="task-option-description">使用自定义拓扑进行参数设计</div>
+          </div>
+        {% elif task == 'run_sim' or task == 'run_sim_def' %}
+          <!-- 仿真验证选项（run_sim / run_sim_def） -->
+          <div class="task-option" onclick="selectTaskType('run_sim')">
+            <div class="task-option-title">双相交错并联Buck拓扑自动仿真验证</div>
+            <div class="task-option-description">使用标准双相交错并联Buck拓扑进行仿真验证</div>
+          </div>
+          <div class="task-option" onclick="selectTaskType('run_sim_def')">
+            <div class="task-option-title">自定义双相交错并联Buck参数</div>
+            <div class="task-option-description">使用自定义双相交错并联Buck拓扑参数进行仿真验证</div>
+          </div>
+        {% elif task == 'eda' %}
+          <!-- 原理图/PCB自动设计选项（eda） -->
+          <div class="task-option" onclick="selectEdAEntry('eda_buck_dual')">
+            <div class="task-option-title">双相交错并联Buck原理图/PCB自动设计</div>
+            <div class="task-option-description">进入后在本页展开功率/控制/驱动/采样及自动布局布线</div>
+          </div>
+          <div class="task-option" onclick="selectEdAEntry('eda_custom_topology')">
+            <div class="task-option-title">自定义拓扑原理图/PCB自动设计</div>
+            <div class="task-option-description">以自定义拓扑为基础的原理图/PCB设计（占位，后续实现）</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="control-panel">
+      <button id="start-btn" class="control-btn" onclick="startTask()" disabled>开始运行</button>
+      <button id="stop-btn" class="control-btn danger" onclick="stopTask()" disabled>停止运行</button>
+      {% if task == 'ppo' %}
+      <button id="device-select-btn" class="control-btn" onclick="openDeviceSelection()" disabled>器件选型</button>
+      {% endif %}
+      {% if task != 'ppo' %}
+      <button id="preview-btn" class="control-btn" onclick="togglePreview()">显示预览</button>
+      {% endif %}
+      <div class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">请先选择任务类型</span>
+      </div>
+      <button id="btn-return-selection" class="control-btn" style="margin-left:auto; display:none; background:transparent; color:#1a1a1a; border:1px solid #d0d0d0;" onclick="returnToTaskSelection()">返回任务选择</button>
+    </div>
+    
+    <!-- 预览面板 -->
+    <div class="preview-panel" id="previewPanel" style="display: none;">
+      <div class="preview-header">
+        <div class="preview-title">{% if task == 'eda' %}KiCad 实时预览{% else %}MATLAB/Simulink 实时预览{% endif %}</div>
+        <div class="preview-controls">
+          <select id="previewFps" class="preview-select">
+            <option value="5">5 FPS</option>
+            <option value="10">10 FPS</option>
+            <option value="15" selected>15 FPS</option>
+            <option value="30">30 FPS</option>
+          </select>
+          <button id="btnPageFullscreen" class="preview-select" style="background:#e0e0e0; color:#1a1a1a;">全屏预览</button>
+          {% if session.get('role') == 'admin' %}
+            <label class="preview-label" style="margin-left:8px;">
+              <input id="enableRemoteClick" type="checkbox" /> 启用远程鼠标
+            </label>
+            <label class="preview-label" style="margin-left:8px;">
+              <input id="enableRemoteKeyboard" type="checkbox" /> 启用远程键盘
+            </label>
+            <span id="delayHeader" class="preview-label" style="display:none;"> 延迟：-- ms</span>
+          {% else %}
+            <input id="userControlPassword" class="preview-select" type="password" placeholder="输入远程鼠标密码并回车" style="background:#ffffff; border:1px solid #d0d0d0; color:#1a1a1a; min-width:260px;" />
+            <label class="preview-label" style="margin-left:8px;">
+              <input id="enableRemoteClick" type="checkbox" disabled /> 启用远程鼠标（普通用户需验证）
+            </label>
+            <span id="delayHeader" class="preview-label" style="display:none;"> 延迟：-- ms</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="preview-content">
+        <div class="preview-container">
+          <img id="previewImg" alt="预览" class="preview-image" />
+          <div id="remoteCursor" style="position:absolute;display:none;width:18px;height:18px;border-left:8px solid #ff4444;border-top:4px solid transparent;border-bottom:4px solid transparent;pointer-events:none;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="output-container">
+      <div class="output-header">
+        <div class="output-title">运行输出</div>
+        <button class="clear-btn" onclick="clearOutput()">清空输出</button>
+      </div>
+      <div class="output-content" id="output-content">等待开始运行...</div>
+      <div class="input-container">
+        <input type="text" class="input-field" id="input-field" placeholder="输入命令或参数..." disabled>
+        <button class="send-btn" id="send-btn" onclick="sendInput()" disabled>发送</button>
+      </div>
+    </div>
+    <!-- 自定义EDA设计输入弹窗（原理图/PCB-自定义） -->
+    <div id="edaCustomDialog" class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">自定义原理图/PCB设计参数</div>
+        <div class="dialog-field">
+          <label class="dialog-label" for="eda_topology">拓扑</label>
+          <select id="eda_topology" class="dialog-input">
+            <option value="">请选择</option>
+            <option value="Buck">Buck</option>
+            <option value="Boost">Boost</option>
+            <option value="Buck-Boost">Buck-Boost</option>
+            <option value="Flyback">Flyback</option>
+            <option value="Forward">Forward</option>
+          </select>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_Vin">输入电压 Vin (V)</label>
+            <input id="eda_Vin" class="dialog-input" type="number" step="any" placeholder="如 24" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_Vout">输出电压 Vout (V)</label>
+            <input id="eda_Vout" class="dialog-input" type="number" step="any" placeholder="如 12" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_Iout">输出电流 Iout (A)</label>
+            <input id="eda_Iout" class="dialog-input" type="number" step="any" placeholder="如 10" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_f">开关频率 f (Hz)</label>
+            <input id="eda_f" class="dialog-input" type="number" step="any" placeholder="如 500000" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_ripple_v">输出纹波目标 Vripple (%)</label>
+            <input id="eda_ripple_v" class="dialog-input" type="number" step="any" placeholder="如 1" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_ripple_i">电感电流纹波目标 Iripple (%)</label>
+            <input id="eda_ripple_i" class="dialog-input" type="number" step="any" placeholder="如 30" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_layers">PCB层数</label>
+            <input id="eda_layers" class="dialog-input" type="number" step="1" placeholder="如 4" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_copper">铜厚 (oz)</label>
+            <input id="eda_copper" class="dialog-input" type="number" step="any" placeholder="如 2" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_clearance">最小电气间隙 Clearance (mm)</label>
+            <input id="eda_clearance" class="dialog-input" type="number" step="any" placeholder="如 1" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_creepage">最小爬电距离 Creepage (mm)</label>
+            <input id="eda_creepage" class="dialog-input" type="number" step="any" placeholder="如 2.5" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_temp">环境温度 (°C)</label>
+            <input id="eda_temp" class="dialog-input" type="number" step="any" placeholder="如 40" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="eda_eff">效率目标 (%)</label>
+            <input id="eda_eff" class="dialog-input" type="number" step="any" placeholder="如 95" />
+          </div>
+        </div>
+        <div class="dialog-field">
+          <label class="dialog-label" for="eda_notes">其他注意事项</label>
+          <input id="eda_notes" class="dialog-input" type="text" placeholder="封装偏好、散热、EMI、过流/过压保护等" />
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-secondary" onclick="closeEdaCustomDialog()">取消</button>
+          <button type="button" class="btn-primary" onclick="submitEdaCustomDesign()">保存</button>
+        </div>
+      </div>
+    </div>
+    <!-- 自定义参数输入弹窗（仿真验证-自定义） -->
+    <div id="customParamDialog" class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">输入自定义双相交错并联Buck参数</div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_f">开关频率 f (Hz)</label>
+            <input id="inp_f" class="dialog-input" type="number" step="any" placeholder="如 550000" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_L">电感 L (H)</label>
+            <input id="inp_L" class="dialog-input" type="number" step="any" placeholder="如 1e-6" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_C">电容 C (F)</label>
+            <input id="inp_C" class="dialog-input" type="number" step="any" placeholder="如 9.6e-6" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_Ron">Ron (Ω)</label>
+            <input id="inp_Ron" class="dialog-input" type="number" step="any" placeholder="如 0.01" />
+          </div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_RL">RL (Ω)</label>
+            <input id="inp_RL" class="dialog-input" type="number" step="any" placeholder="如 0.01" />
+          </div>
+          <div class="dialog-field">
+            <label class="dialog-label" for="inp_RC">RC (Ω)</label>
+            <input id="inp_RC" class="dialog-input" type="number" step="any" placeholder="如 0.2" />
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-secondary" onclick="closeCustomDialog()">取消</button>
+          <button type="button" class="btn-primary" onclick="submitCustomParams()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRunId = null;
+    let isRunning = false;
+    let pollInterval = null;
+    let cursor = 0;
+    let selectedTaskType = null;
+    let previewInterval = null;
+    let hasCompletedOneRun = false; // 至少完成一次运行后，器件选型才可用（仅 ppo）
+    
+    const task = '{{ task }}';
+    let edaSelectedEntry = null; // 用于 EDA 一级入口选择（buck_dual 或 custom_topology）
+    
+    // 任务选择功能
+    function selectTaskType(taskType) {
+      // 参数设计中的自定义拓扑：跳转到Coze AI助手
+      if (task === 'ppo' && taskType === 'run_sim_def') {
+        if (confirm('即将跳转到AI助手进行自定义拓扑参数设计，是否继续？')) {
+          window.location.href = 'https://www.coze.cn/space/7546496844034162739/ui-builder-preview/7546449200230367284/pc/home';
+        }
+        return;
+      }
+      
+      // 仿真验证中的自定义参数：打开输入弹窗
+      if ((task === 'run_sim' || task === 'run_sim_def') && taskType === 'run_sim_def') {
+        openCustomDialog();
+        return;
+      }
+
+      selectedTaskType = taskType;
+      
+      // 隐藏任务选择面板
+      document.getElementById('taskSelectionPanel').style.display = 'none';
+      
+      // 启用开始按钮
+      document.getElementById('start-btn').disabled = false;
+      
+      // 更新状态
+      updateStatus('stopped', '已选择任务类型，可以开始运行');
+      
+      // 显示任务信息
+      const taskInfo = getTaskInfo(taskType);
+      appendOutput(`已选择任务: ${taskInfo.title}`);
+      appendOutput(`任务描述: ${taskInfo.description}`);
+
+      // 显示“返回任务选择”按钮
+      try { document.getElementById('btn-return-selection').style.display = 'inline-block'; } catch {}
+    }
+
+    // EDA 一级入口选择：只影响页面展示，不直接触发后端
+    function selectEdAEntry(entry) {
+      if (task !== 'eda') return;
+      edaSelectedEntry = entry;
+      // 在输出中提示
+      if (entry === 'eda_buck_dual') {
+        // 仅双相交错入口时，立即进入本页子功能区
+        document.getElementById('taskSelectionPanel').style.display = 'none';
+        appendOutput('已选择：双相交错Buck原理图/PCB自动设计\n');
+        showEdaBuckDualSubButtons();
+        document.getElementById('start-btn').disabled = true;
+        updateStatus('stopped', '已选择EDA入口，可进行下一步界面操作');
+        try { document.getElementById('btn-return-selection').style.display = 'inline-block'; } catch {}
+      } else if (entry === 'eda_custom_topology') {
+        // 自定义拓扑：先弹窗采集参数；未保存前禁止页面跳转
+        appendOutput('已选择：自定义拓扑原理图/PCB自动设计\n');
+        openEdaCustomDialog();
+        // 保持任务选择面板可见，不改变按钮与返回键状态
+        try { document.getElementById('btn-return-selection').style.display = 'none'; } catch {}
+        document.getElementById('start-btn').disabled = true;
+        updateStatus('stopped', '请先完成自定义参数填写并保存');
+      }
+    }
+
+    function showEdaBuckDualSubButtons() {
+      // 在控制面板下方动态插入一个EDA子功能区域
+      const containerId = 'edaBuckDualPanel';
+      if (document.getElementById(containerId)) return;
+      const panel = document.createElement('div');
+      panel.id = containerId;
+      panel.className = 'task-selection-panel';
+      panel.innerHTML = `
+        <div class="task-selection-title">请选择子功能：</div>
+        <div class="task-options">
+          <div class="task-option" onclick="edaSubAction('power')">
+            <div class="task-option-title">整体电路设计</div>
+            <div class="task-option-description">给出双相交错并联Buck的整体原理图/PCB设计</div>
+          </div>
+          <div class="task-option" onclick="edaSubAction('auto_route')">
+            <div class="task-option-title">自动布线</div>
+            <div class="task-option-description">自动布线工具，辅助打开PCB并开始自动布线</div>
+          </div>
+          <div class="task-option" onclick="edaSubAction('design_demo')">
+            <div class="task-option-title">自动设计演示</div>
+            <div class="task-option-description">演示双相交错并联Buck的自动设计过程</div>
+          </div>
+        </div>
+      `;
+      // 插入到输出面板之前
+      const mainContent = document.querySelector('.main-content');
+      const outputContainer = document.querySelector('.output-container');
+      mainContent.insertBefore(panel, outputContainer);
+    }
+
+    async function edaSubAction(action) {
+      const labels = {
+        power: '整体电路设计',
+        auto_route: '自动布线',
+        design_demo: '自动设计演示'
+      };
+      
+      // 整体电路设计功能
+      if (action === 'power') {
+        appendOutput(`\n${'='.repeat(60)}\n`);
+        appendOutput(`🚀 开始执行双相交错并联Buck整体电路设计\n`);
+        appendOutput(`${'='.repeat(60)}\n\n`);
+        
+        // 模拟自动设计的逐步过程
+        appendOutput(`📊 正在分析设计需求...\n`);
+        await sleep(800);
+        appendOutput(`  ✓ 拓扑结构：双相交错并联Buck\n`);
+        appendOutput(`  ✓ 输入电压：48V\n`);
+        appendOutput(`  ✓ 输出电压：12V\n`);
+        await sleep(600);
+        
+        appendOutput(`\n🔧 正在生成功率电路...\n`);
+        await sleep(700);
+        appendOutput(`  ✓ 选择开关器件：MOSFET (2个)\n`);
+        await sleep(500);
+        appendOutput(`  ✓ 设计电感参数：L1=1uH, L2=1uH\n`);
+        await sleep(500);
+        appendOutput(`  ✓ 设计输出电容：C_out=10uF\n`);
+        await sleep(600);
+        
+        appendOutput(`\n⚡ 正在生成控制电路...\n`);
+        await sleep(700);
+        appendOutput(`  ✓ 控制芯片：TMS320F28335\n`);
+        await sleep(500);
+        
+        appendOutput(`\n🔌 正在生成驱动电路...\n`);
+        await sleep(650);
+        appendOutput(`  ✓ 栅极驱动：驱动电路\n`);
+        await sleep(500);
+        appendOutput(`  ✓ 自举电路：自举电容 + 二极管\n`);
+        await sleep(600);
+        
+        appendOutput(`\n📡 正在生成采样电路...\n`);
+        await sleep(700);
+        appendOutput(`  ✓ 电压采样\n`);
+        await sleep(600);
+        
+        appendOutput(`\n✨ 设计生成完成！正在打开KiCad...\n\n`);
+        await sleep(500);
+        
+        try {
+          const response = await fetch('/api/eda/open_design', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+          });
+          
+          const result = await response.json();
+          
+          if (result.status === 'success') {
+            appendOutput(`${'='.repeat(60)}\n`);
+            appendOutput(`✅ KiCad设计文件已打开\n`);
+            appendOutput(`${'='.repeat(60)}\n\n`);
+            
+            if (result.schematic_opened) {
+              appendOutput(`📐 原理图编辑器: 已打开`);
+              if (result.schematic_maximized) {
+                appendOutput();
+              }
+              appendOutput(`\n   文件: ${result.schematic_path}\n\n`);
+            }
+            
+            if (result.pcb_opened) {
+              appendOutput(`🖼️  PCB编辑器: 已打开`);
+              if (result.pcb_maximized) {
+                appendOutput();
+              }
+              appendOutput(`\n   文件: ${result.pcb_path}\n\n`);
+            }
+            
+            appendOutput(`${'='.repeat(60)}\n`);
+            appendOutput(`💡 提示：窗口已全屏显示，可直接查看和编辑设计\n`);
+            if (result.schematic_opened && result.pcb_opened) {
+              appendOutput(`💡 提示：使用Alt+Tab可在原理图和PCB之间切换\n`);
+            }
+            appendOutput(`${'='.repeat(60)}\n\n`);
+          } else {
+            appendOutput(`❌ 打开失败: ${result.error}\n`);
+            if (result.traceback) {
+              appendOutput(`\n错误详情:\n${result.traceback}\n`);
+            }
+          }
+        } catch (err) {
+          appendOutput(`❌ 请求失败: ${err.message}\n`);
+        }
+        
+        return;
+      }
+      
+      // 自动布线功能已实现
+      if (action === 'auto_route') {
+        appendOutput(`正在启动布线功能...\n`);
+        appendOutput(`正在打开KiCad PCB编辑器...\n`);
+        
+        try {
+          const response = await fetch('/api/eda/auto_route', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+          });
+          
+          const result = await response.json();
+          
+          if (result.status === 'success') {
+            appendOutput(`✓ ${result.message}\n`);
+            appendOutput(`PCB文件: ${result.pcb_path}\n`);
+            appendOutput(`KiCad路径: ${result.kicad_path}\n`);
+            appendOutput(`进程ID: ${result.pid}\n\n`);
+            
+            // 显示操作步骤
+            if (result.manual_steps && result.manual_steps.length > 0) {
+              appendOutput(`============================================\n`);
+              appendOutput(`📋 请按照以下步骤进行FreeRouting自动布线：\n`);
+              appendOutput(`============================================\n\n`);
+              
+              result.manual_steps.forEach(step => {
+                appendOutput(`${step}\n`);
+              });
+              
+              if (result.quick_tip) {
+                appendOutput(`\n💡 ${result.quick_tip}\n`);
+              }
+              
+              appendOutput(`\n============================================\n`);
+              appendOutput(`提示：KiCad PCB编辑器已打开，请在窗口中进行上述操作\n`);
+              appendOutput(`============================================\n\n`);
+            }
+          } else {
+            appendOutput(`✗ 启动失败: ${result.error}\n`);
+            if (result.traceback) {
+              appendOutput(`\n错误详情:\n${result.traceback}\n`);
+            }
+            alert(`布线功能启动失败: ${result.error}`);
+          }
+        } catch (err) {
+          appendOutput(`✗ 请求失败: ${err.message}\n`);
+          alert(`请求失败: ${err.message}`);
+        }
+        return;
+      }
+      
+      // 设计演示功能 - 跳转到专用编辑器页面
+      if (action === 'design_demo') {
+        appendOutput(`\n${'='.repeat(60)}\n`);
+        appendOutput(`🎬 开始自动设计演示\n`);
+        appendOutput(`${'='.repeat(60)}\n\n`);
+        
+        appendOutput(`📋 正在加载设计文件...\n`);
+        await sleep(500);
+        appendOutput(`✓ 设计文件准备就绪\n\n`);
+        await sleep(300);
+        
+        appendOutput(`🔧 正在打开原理图编辑器页面...\n`);
+        await sleep(500);
+        
+        // 跳转到原理图编辑器页面
+        window.location.href = '/schematic_editor';
+        
+        return;
+      }
+      
+      // 其他功能暂未实现
+      appendOutput(`[占位] 触发：${labels[action] || action}\n`);
+      alert(labels[action] + ' 功能尚未实现，本次为页面占位。');
+    }
+
+    function openCustomDialog() {
+      try { document.getElementById('customParamDialog').style.display = 'flex'; } catch {}
+    }
+    function closeCustomDialog() {
+      try { document.getElementById('customParamDialog').style.display = 'none'; } catch {}
+    }
+    function openEdaCustomDialog() {
+      try { document.getElementById('edaCustomDialog').style.display = 'flex'; } catch {}
+    }
+    function closeEdaCustomDialog() {
+      try { document.getElementById('edaCustomDialog').style.display = 'none'; } catch {}
+    }
+    async function submitEdaCustomDesign() {
+      const topology = (document.getElementById('eda_topology').value || '').trim();
+      const Vin = parseFloat(document.getElementById('eda_Vin').value || '');
+      const Vout = parseFloat(document.getElementById('eda_Vout').value || '');
+      const Iout = parseFloat(document.getElementById('eda_Iout').value || '');
+      const f = parseFloat(document.getElementById('eda_f').value || '');
+      const ripple_v = parseFloat(document.getElementById('eda_ripple_v').value || '');
+      const ripple_i = parseFloat(document.getElementById('eda_ripple_i').value || '');
+      const layers = parseInt(document.getElementById('eda_layers').value || '');
+      const copper_oz = parseFloat(document.getElementById('eda_copper').value || '');
+      const clearance = parseFloat(document.getElementById('eda_clearance').value || '');
+      const creepage = parseFloat(document.getElementById('eda_creepage').value || '');
+      const temp_ambient = parseFloat(document.getElementById('eda_temp').value || '');
+      const efficiency = parseFloat(document.getElementById('eda_eff').value || '');
+      const notes = (document.getElementById('eda_notes').value || '').trim();
+      if (!topology || Number.isNaN(Vin) || Number.isNaN(Vout)) { alert('请至少选择拓扑并填写Vin/Vout'); return; }
+      try {
+        const res = await fetch('/api/eda/custom_design', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topology, Vin, Vout, Iout, f, ripple_v, ripple_i, layers, copper_oz, clearance, creepage, temp_ambient, efficiency, notes }) });
+        const data = await res.json();
+        if (!res.ok || !data || data.status !== 'success') throw new Error(data && data.error ? data.error : '保存失败');
+        closeEdaCustomDialog();
+        
+        // 保存成功：隐藏任务选择面板，显示"返回任务选择"按钮
+        try { document.getElementById('taskSelectionPanel').style.display = 'none'; } catch {}
+        try { document.getElementById('btn-return-selection').style.display = 'inline-block'; } catch {}
+        // 自定义拓扑未启动后端任务，保持开始按钮禁用
+        try { document.getElementById('start-btn').disabled = true; } catch {}
+        updateStatus('stopped', 'EDA自定义参数已保存');
+        appendOutput('EDA自定义参数已保存到: ' + (data.path || 'Visualization/eda_custom_design.csv') + '\n');
+        
+        // 复制设计需求文字到剪贴板
+        if (data.requirement_text) {
+          try {
+            await navigator.clipboard.writeText(data.requirement_text);
+            appendOutput('✓ 设计需求已复制到剪贴板\n');
+            appendOutput('✓ 设计需求已保存到: ' + data.txt_path + '\n\n');
+            
+            // 弹窗提示用户，并询问是否跳转
+            const shouldJump = confirm('✅ 保存成功！\n\n' + 
+                  '📋 设计需求文字已复制到剪贴板\n' +
+                  '📄 文件已保存到: ' + data.txt_path + '\n\n' +
+                  '是否跳转到自定义原理图编辑器？\n\n' +
+                  '点击"确定"跳转，点击"取消"留在当前页面');
+            
+            if (shouldJump) {
+              // 跳转到自定义原理图编辑器页面
+              window.location.href = '/custom_schematic_editor';
+            } else {
+              appendOutput('ℹ 用户选择留在当前页面\n');
+            }
+            
+          } catch (clipboardErr) {
+            // 如果剪贴板API失败，使用备用方法
+            const textArea = document.createElement('textarea');
+            textArea.value = data.requirement_text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              appendOutput('✓ 设计需求已复制到剪贴板（备用方法）\n');
+              appendOutput('✓ 设计需求已保存到: ' + data.txt_path + '\n\n');
+              
+              // 弹窗提示用户，并询问是否跳转
+              const shouldJump = confirm('✅ 保存成功！\n\n' + 
+                    '📋 设计需求文字已复制到剪贴板\n' +
+                    '📄 文件已保存到: ' + data.txt_path + '\n\n' +
+                    '是否跳转到自定义原理图编辑器？\n\n' +
+                    '点击"确定"跳转，点击"取消"留在当前页面');
+              
+              if (shouldJump) {
+                // 跳转到自定义原理图编辑器页面
+                window.location.href = '/custom_schematic_editor';
+              } else {
+                appendOutput('ℹ 用户选择留在当前页面\n');
+              }
+              
+            } catch (err) {
+              appendOutput('⚠ 无法复制到剪贴板，但文件已保存\n');
+              
+              // 弹窗提示用户，并询问是否跳转
+              const shouldJump = confirm('✅ 保存成功！\n\n' + 
+                    '📄 文件已保存到: ' + data.txt_path + '\n\n' +
+                    '⚠ 自动复制到剪贴板失败\n\n' +
+                    '是否跳转到自定义原理图编辑器？\n\n' +
+                    '点击"确定"跳转，点击"取消"留在当前页面');
+              
+              if (shouldJump) {
+                // 跳转到自定义原理图编辑器页面
+                window.location.href = '/custom_schematic_editor';
+              } else {
+                appendOutput('ℹ 用户选择留在当前页面\n');
+              }
+              
+            } finally {
+              document.body.removeChild(textArea);
+            }
+          }
+        }
+      } catch (e) {
+        alert('保存失败：' + (e && e.message ? e.message : e));
+      }
+    }
+    async function submitCustomParams() {
+      const f = parseFloat(document.getElementById('inp_f').value || '');
+      const L = parseFloat(document.getElementById('inp_L').value || '');
+      const C = parseFloat(document.getElementById('inp_C').value || '');
+      const Ron = parseFloat(document.getElementById('inp_Ron').value || '');
+      const RL = parseFloat(document.getElementById('inp_RL').value || '');
+      const RC = parseFloat(document.getElementById('inp_RC').value || '');
+      if ([f,L,C,Ron,RL,RC].some(v => Number.isNaN(v))) { alert('请完整填写数值参数'); return; }
+      try {
+        const res = await fetch('/api/custom_params', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ f, L, C, Ron, RL, RC }) });
+        const data = await res.json();
+        if (!res.ok || !data || data.status !== 'success') throw new Error(data && data.error ? data.error : '保存失败');
+        closeCustomDialog();
+        selectedTaskType = 'run_sim_def';
+        document.getElementById('taskSelectionPanel').style.display = 'none';
+        document.getElementById('start-btn').disabled = false;
+        updateStatus('stopped', '参数已保存，可开始运行');
+        appendOutput('参数已保存到: ' + (data.path || 'Visualization/self_defined_para.csv'));
+        
+        // 显示"返回任务选择"按钮
+        try { document.getElementById('btn-return-selection').style.display = 'inline-block'; } catch {}
+      } catch (e) {
+        alert('保存失败：' + (e && e.message ? e.message : e));
+      }
+    }
+    
+    function getTaskInfo(taskType) {
+      const taskInfos = {
+        'ppo': {
+          title: '双相交错并联Buck拓扑自动设计',
+          description: '使用标准双相交错并联Buck拓扑进行自动参数设计'
+        },
+        'run_sim': {
+          title: '双相交错并联Buck拓扑自动仿真验证',
+          description: '使用标准双相交错并联Buck拓扑进行仿真验证'
+        },
+        'run_sim_def': {
+          title: task === 'ppo' ? '自定义拓扑参数设计' : '自定义双相交错并联Buck参数',
+          description: task === 'ppo' ? '使用自定义拓扑进行参数设计' : '使用自定义双相交错并联Buck拓扑参数进行仿真验证'
+        },
+        'eda_auto': {
+          title: '自动生成原理图/PCB',
+          description: '基于设计参数自动生成原理图与PCB初版'
+        },
+        'eda_custom': {
+          title: '自定义EDA参数生成',
+          description: '设置封装、走线、层叠等偏好后生成原理图与PCB'
+        }
+      };
+      return taskInfos[taskType] || { title: '未知任务', description: '' };
+    }
+    
+    function updateStatus(status, text) {
+      const dot = document.getElementById('status-dot');
+      const textEl = document.getElementById('status-text');
+      const startBtn = document.getElementById('start-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const inputField = document.getElementById('input-field');
+      const sendBtn = document.getElementById('send-btn');
+      
+      dot.className = 'status-dot ' + status;
+      textEl.textContent = text;
+      
+      if (status === 'running') {
+        isRunning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        inputField.disabled = false;
+        sendBtn.disabled = false;
+        try { if (task === 'ppo') document.getElementById('device-select-btn').disabled = true; } catch {}
+      } else {
+        isRunning = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        inputField.disabled = true;
+        sendBtn.disabled = true;
+        // 非运行状态不自动启用器件选型，需在首次完成时手动启用
+      }
+    }
+
+    // 返回任务选择：恢复初始状态与界面
+    function returnToTaskSelection() {
+      // 停止运行与预览
+      try { if (isRunning) stopTask(); } catch {}
+      try { stopPreview(); } catch {}
+
+      // 清理已选择状态
+      selectedTaskType = null;
+      edaSelectedEntry = null;
+      hasCompletedOneRun = false;
+      updateStatus('stopped', '请先选择任务类型');
+
+      // 清空输出并提示
+      clearOutput();
+      appendOutput('已返回任务选择，请先选择任务类型\n');
+
+      // 显示任务选择面板
+      try { document.getElementById('taskSelectionPanel').style.display = 'block'; } catch {}
+
+      // 隐藏“返回任务选择”按钮
+      try { document.getElementById('btn-return-selection').style.display = 'none'; } catch {}
+
+      // 关闭并移除 EDA 子面板
+      const edaPanel = document.getElementById('edaBuckDualPanel');
+      if (edaPanel && edaPanel.parentNode) {
+        edaPanel.parentNode.removeChild(edaPanel);
+      }
+
+      // 隐藏与禁用器件选型按钮
+      try { if (task === 'ppo') document.getElementById('device-select-btn').disabled = true; } catch {}
+    }
+    // 器件选型：需已完成一次运行
+    function openDeviceSelection() {
+      if (task !== 'ppo') return;
+      if (!hasCompletedOneRun) {
+        alert('请先完整执行一次开始运行，再进行器件选型。');
+        return;
+      }
+      const ok = confirm('请确认已经复制PPO训练摘要报告，即将跳转到器件选型页面。');
+      if (!ok) return;
+      window.location.href = 'https://www.coze.cn/space/7546496844034162739/ui-builder-preview/7546449200230367284/pc/iIJztG9qCF';
+    }
+    
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    function appendOutput(text) {
+      const output = document.getElementById('output-content');
+      output.textContent += text;
+      output.scrollTop = output.scrollHeight;
+    }
+    
+    function clearOutput() {
+      document.getElementById('output-content').textContent = '';
+    }
+    
+    function startTask() {
+      if (isRunning) return;
+      
+      if (!selectedTaskType) {
+        alert('请先选择任务类型');
+        return;
+      }
+      
+      // 仅当参数设计任务完成过一次后，允许器件选型
+      try { if (task === 'ppo') document.getElementById('device-select-btn').disabled = true; } catch {}
+
+      updateStatus('running', '启动中...');
+      clearOutput();
+      
+      fetch('/api/run/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ task: selectedTaskType })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          updateStatus('stopped', '启动失败');
+          appendOutput('启动失败: ' + data.error + '\n');
+        } else {
+          currentRunId = data.run_id;
+          cursor = data.next || 0;
+          updateStatus('running', '运行中');
+          startPolling();
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        updateStatus('stopped', '启动失败');
+        appendOutput('启动时发生错误: ' + error.message + '\n');
+      });
+    }
+    
+    function stopTask() {
+      if (!isRunning || !currentRunId) return;
+      
+      fetch('/api/run/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ run_id: currentRunId })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          appendOutput('停止失败: ' + data.error + '\n');
+        } else {
+          updateStatus('stopped', '已停止');
+          appendOutput('\n[任务已停止]\n');
+          // 未完成则不解锁器件选型
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        appendOutput('停止时发生错误: ' + error.message + '\n');
+      });
+      
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      currentRunId = null;
+    }
+    
+    function startPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+      
+      pollInterval = setInterval(() => {
+        if (!currentRunId) return;
+        
+        fetch(`/api/run/poll?run_id=${currentRunId}&cursor=${cursor}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            console.error('Poll error:', data.error);
+            return;
+          }
+          
+          if (data.lines && data.lines.length > 0) {
+            const newText = data.lines.join('\n') + '\n';
+            appendOutput(newText);
+            cursor = data.next;
+          }
+          
+          if (data.done) {
+            updateStatus('stopped', '运行完成');
+            // 标记完成一次运行
+            hasCompletedOneRun = true;
+            // 启用器件选型（仅 ppo）
+            try { if (task === 'ppo') document.getElementById('device-select-btn').disabled = false; } catch {}
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+            currentRunId = null;
+          }
+        })
+        .catch(error => {
+          console.error('Poll error:', error);
+        });
+      }, 1000);
+    }
+    
+    function sendInput() {
+      const inputField = document.getElementById('input-field');
+      const text = inputField.value.trim();
+      
+      if (!text || !currentRunId) return;
+      
+      fetch('/api/run/input', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          run_id: currentRunId,
+          text: text
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          appendOutput('输入失败: ' + data.error + '\n');
+        } else {
+          appendOutput('> ' + text + '\n');
+          inputField.value = '';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        appendOutput('输入时发生错误: ' + error.message + '\n');
+      });
+    }
+    
+    // 预览功能
+    function togglePreview() {
+      const previewPanel = document.getElementById('previewPanel');
+      const previewBtn = document.getElementById('preview-btn');
+      
+      if (previewPanel.style.display === 'none') {
+        previewPanel.style.display = 'block';
+        previewBtn.textContent = '隐藏预览';
+        startPreview();
+      } else {
+        previewPanel.style.display = 'none';
+        previewBtn.textContent = '显示预览';
+        stopPreview();
+      }
+    }
+    
+    function startPreview() {
+      if (previewInterval) {
+        clearInterval(previewInterval);
+      }
+      
+      const previewImg = document.getElementById('previewImg');
+      const fps = parseInt(document.getElementById('previewFps').value) || 15;
+      const interval = 1000 / fps;
+      
+      function updatePreview() {
+        const timestamp = Date.now();
+        previewImg.src = `/api/stream/matlab?target=screen&fps=${fps}&_=${timestamp}`;
+      }
+      
+      // 立即更新一次
+      updatePreview();
+      
+      // 设置定时更新
+      previewInterval = setInterval(updatePreview, interval);
+    }
+    
+    function stopPreview() {
+      if (previewInterval) {
+        clearInterval(previewInterval);
+        previewInterval = null;
+      }
+    }
+    
+    function goBack() {
+      if (isRunning) {
+        if (confirm('任务正在运行中，确定要返回吗？')) {
+          stopTask();
+          stopPreview();
+          window.location.href = '/';
+        }
+      } else {
+        stopPreview();
+        window.location.href = '/';
+      }
+    }
+    
+    // 处理回车键发送输入
+    document.getElementById('input-field').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        sendInput();
+      }
+    });
+    
+    // 移除缩放事件监听（改用全屏预览）
+    
+    // FPS变化时重新启动预览
+    document.getElementById('previewFps').addEventListener('change', function() {
+      if (previewInterval) {
+        startPreview();
+      }
+    });
+
+    // 全屏预览（Esc 退出由浏览器原生处理）
+    document.getElementById('btnPageFullscreen').addEventListener('click', async () => {
+      try {
+        const container = document.querySelector('.preview-container');
+        const img = document.getElementById('previewImg');
+        // 优先让图片元素进入全屏以避免容器滚动区域导致的黑边/黑屏
+        const target = img || container || document.documentElement;
+        if (target.requestFullscreen) await target.requestFullscreen();
+      } catch {}
+    });
+
+    // 延迟显示（管理员）
+    (function initLatencyDisplay(){
+      const delayHeader = document.getElementById('delayHeader');
+      if (!delayHeader) return;
+      async function measureOnce(){
+        const t0 = performance.now();
+        try { await fetch('/api/preview/ping?_=' + Date.now(), { cache:'no-cache' }); } catch {}
+        const t1 = performance.now();
+        const rtt = Math.max(0, Math.round(t1 - t0));
+        delayHeader.textContent = ' 延迟：' + rtt + ' ms';
+        delayHeader.style.display = '';
+      }
+      measureOnce();
+      setInterval(measureOnce, 1000);
+    })();
+
+    // ---- 远程鼠标与键盘 ----
+    // 普通用户验证远程鼠标密码
+    (function initUserMouseVerify(){
+      const input = document.getElementById('userControlPassword');
+      if (!input) return;
+      input.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        const pw = (input.value || '').trim();
+        if (!pw) return;
+        try {
+          const r = await fetch('/api/remote_control/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pw })});
+          const j = await r.json();
+          if (r.ok && j && j.ok) {
+            const enable = document.getElementById('enableRemoteClick');
+            if (enable) enable.disabled = false;
+            alert('远程鼠标已启用');
+          } else {
+            alert('验证失败：' + (j && j.error));
+          }
+        } catch {}
+      });
+    })();
+
+    // 预览图点击发送（管理员或已启用远程鼠标的普通用户）
+    (function initPreviewClick(){
+      const img = document.getElementById('previewImg');
+      const enable = document.getElementById('enableRemoteClick');
+      if (!img || !enable) return;
+      img.addEventListener('click', async (e) => {
+        if (!enable.checked) return;
+        const rect = img.getBoundingClientRect();
+        const xNorm = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+        const yNorm = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
+        try {
+          const res = await fetch('/api/input/mouse_click_screen', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ x_norm: xNorm, y_norm: yNorm, button: 'left' })});
+          if (!res.ok) {
+            try { const t = await res.text(); console.log('mouse_click_screen error:', t); } catch {}
+          }
+        } catch (err) { console.log('mouse click error', err); }
+      });
+      // 右键菜单 -> 右键单击
+      img.addEventListener('contextmenu', async (e) => {
+        if (!enable.checked) return;
+        e.preventDefault();
+        const rect = img.getBoundingClientRect();
+        const xNorm = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+        const yNorm = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
+        try {
+          const res = await fetch('/api/input/mouse_click_screen', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ x_norm: xNorm, y_norm: yNorm, button: 'right' })});
+          if (!res.ok) {
+            try { const t = await res.text(); console.log('mouse_right error:', t); } catch {}
+          }
+        } catch {}
+      });
+      // 双击
+      img.addEventListener('dblclick', async (e) => {
+        if (!enable.checked) return;
+        const rect = img.getBoundingClientRect();
+        const xNorm = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+        const yNorm = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
+        try {
+          const res = await fetch('/api/input/mouse_double_click', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ x_norm: xNorm, y_norm: yNorm, button: 'left' })});
+          if (!res.ok) {
+            try { const t = await res.text(); console.log('mouse_dbl error:', t); } catch {}
+          }
+        } catch {}
+      });
+    })();
+
+    // 鼠标滚轮
+    (function initWheel(){
+      const img = document.getElementById('previewImg');
+      const enable = document.getElementById('enableRemoteClick');
+      if (!img || !enable) return;
+      img.addEventListener('wheel', async (e) => {
+        if (!enable.checked) return;
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 120 : -120; // 上滚为正
+        try { await fetch('/api/input/mouse_wheel', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ delta })}); } catch {}
+      }, { passive: false });
+    })();
+
+    // 键盘控制（管理员勾选启用）
+    (function initKeyboard(){
+      const enableKb = document.getElementById('enableRemoteKeyboard');
+      if (!enableKb) return;
+      let active = false;
+      enableKb.addEventListener('change', (e) => { active = !!enableKb.checked; });
+      document.addEventListener('keydown', (e) => sendKey(e, 'down'));
+      document.addEventListener('keyup', (e) => sendKey(e, 'up'));
+      async function sendKey(e, action){
+        if (!active) return;
+        // 基本映射：把 e.code 直接传后端，由后端做更细映射
+        const payload = { key: e.key, code: e.code, action: action, modifiers: [] };
+        if (e.ctrlKey) payload.modifiers.push('ctrl');
+        if (e.altKey) payload.modifiers.push('alt');
+        if (e.shiftKey) payload.modifiers.push('shift');
+        if (e.metaKey) payload.modifiers.push('win');
+        try { await fetch('/api/input/keyboard_key', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); } catch {}
+        // 防止页面滚动/快捷键干扰
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    })();
+    
+    // 页面卸载时停止任务和预览
+    window.addEventListener('beforeunload', function() {
+      if (isRunning && currentRunId) {
+        fetch('/api/run/stop', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ run_id: currentRunId })
+        });
+      }
+      stopPreview();
+    });
+  </script>
+</body>
+</html>

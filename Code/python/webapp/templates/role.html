@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ title }}</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body { height: 100%; }
+    body { margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f5f5f5; color: #1a1a1a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .card { width: min(520px, 92vw); padding: 18px; border: 1px solid #d0d0d0; border-radius: 12px; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .main-title { font-weight: 800; letter-spacing: 1.5px; font-size: 36px; margin-bottom: 40px; text-align: center; color: #1a1a1a; text-shadow: none; }
+    .title { font-weight: 800; letter-spacing: 0.4px; font-size: 18px; margin-bottom: 8px; color: #1a1a1a; }
+    .desc { color: #666666; font-size: 12px; margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .btn { padding: 8px 12px; border-radius: 8px; border: none; background: #3a86ff; color: #fff; cursor: pointer; }
+    .input { padding: 8px 12px; border-radius: 8px; border: 1px solid #d0d0d0; background: #ffffff; color: #1a1a1a; flex: 1; }
+    .error { color: #ff4444; font-size: 12px; margin-top: 6px; }
+  </style>
+  {% if error %}
+  <meta name="robots" content="noindex">
+  {% endif %}
+  </head>
+<body>
+    <div class="main-title">AI+电力电子智能设计平台</div>
+  </div>
+  <div class="card">
+    <div class="title">选择身份</div>
+    <div class="desc">管理员/普通用户均需登录密码；登录后管理员远程控制与键盘免密，普通用户仅可远程控制。</div>
+    <form method="post" action="/role/set" class="row">
+      <select name="role" class="input" style="max-width: 180px;">
+        <option value="admin">管理员</option>
+        <option value="user">普通用户</option>
+      </select>
+      <input name="password" class="input" type="password" placeholder="输入所选身份的登录密码" />
+      <button type="submit" class="btn">进入</button>
+    </form>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+  </div>
+</body>
+</html>
+

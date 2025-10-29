@@ -1,0 +1,15 @@
+parameter,value
+topology,Boost
+Vin(V),24.0
+Vout(V),12.0
+Iout(A),10.0
+f(Hz),500000.0
+Vripple(%),1.0
+Iripple(%),30.0
+PCB_layers,2
+Copper(oz),2.0
+Clearance(mm),1.0
+Creepage(mm),2.5
+AmbientTemp(C),40.0
+EfficiencyTarget(%),95.0
+Notes,

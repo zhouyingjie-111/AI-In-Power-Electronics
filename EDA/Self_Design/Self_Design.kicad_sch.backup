@@ -1,0 +1,625 @@
+(kicad_sch
+(version 20231120)
+(generator "eeschema")
+(generator_version "8.0")
+(uuid "27a419d9-4b38-4136-8526-c2b426bda452")
+(paper "A3")
+(lib_symbols
+(symbol "Connector:Screw_Terminal_01x02"
+(pin_names
+(offset 1.016) hide)
+(exclude_from_sim no)
+(in_bom yes)
+(on_board yes)
+(property "Reference" "J"
+(at 0 2.54 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(property "Value" "Screw_Terminal_01x02"
+(at 0 -5.08 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(property "Footprint" ""
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "Datasheet" "~"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "Description" "Generic screw terminal, single row, 01x02"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "ki_keywords" "screw terminal"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "ki_fp_filters" "TerminalBlock*:*"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(symbol "Screw_Terminal_01x02_1_1"
+(rectangle
+(start -1.27 1.27)
+(end 1.27 -3.81)
+(stroke
+(width 0.254)
+(type default)
+)
+(fill
+(type background)
+)
+)
+(circle
+(center 0 -2.54)
+(radius 0.635)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(polyline
+(pts
+(xy -0.5334 -2.2098) (xy 0.3302 -3.048)
+)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(polyline
+(pts
+(xy -0.5334 0.3302) (xy 0.3302 -0.508)
+)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(polyline
+(pts
+(xy -0.3556 -2.032) (xy 0.508 -2.8702)
+)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(polyline
+(pts
+(xy -0.3556 0.508) (xy 0.508 -0.3302)
+)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(circle
+(center 0 0)
+(radius 0.635)
+(stroke
+(width 0.1524)
+(type default)
+)
+(fill
+(type none)
+)
+)
+(pin passive line
+(at -5.08 0 0)
+(length 3.81)
+(name "Pin_1"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "1"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at -5.08 -2.54 0)
+(length 3.81)
+(name "Pin_2"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "2"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+)
+)
+(symbol "DSP_Texas:TMS320F28335PTPQ"
+(exclude_from_sim no)
+(in_bom yes)
+(on_board yes)
+(property "Reference" "U"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(property "Value" "TMS320F28335PTPQ"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Footprint" "LQFP-176_L24.0-W24.0-P0.50-LS26.0-BL-EP6.0"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "Datasheet" ""
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "Description" ""
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(property "Symbol" "TMS320F28335PTPQ"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Device" "TMS320F28335PTPQ"
+(at 0 0 0)
+(effects
+(font
+(size 1.8288 1.8288)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "LCSC Part Name" "具有 150MIPS、FPU、512KB 闪存、EMIF、12 位 ADC 的汽车类 C2000™ 32 位 MCU"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Supplier Part" "C83635"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Manufacturer" "TI(德州仪器)"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Manufacturer Part" "TMS320F28335PTPQ"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Supplier Footprint" "LQFP-176(24x24)"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "JLCPCB Part Class" "Extended Part"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Datasheet_1" "https://item.szlcsc.com/datasheet/TMS320F28335PTPQ/84800.html"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Supplier" "LCSC"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Add into BOM" "yes"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Convert to PCB" "yes"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "CPU Core" "其他系列"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "CPU Maximum Speed" "150MHz"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Program Storage Size" "512KB"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Number of I/O" "88"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "ADC (Bit)" "12bit"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Voltage - Supply" "1.805V~1.995V"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "Applications" "-"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(justify left bottom)
+(hide yes)
+)
+)
+(property "ki_fp_filters" "LQFP-176_L24.0-W24.0-P0.50-LS26.0-BL-EP6.0"
+(at 0 0 0)
+(effects
+(font
+(size 1.27 1.27)
+)
+(hide yes)
+)
+)
+(symbol "TMS320F28335PTPQ_1_0"
+(rectangle
+(start -39.37 113.03)
+(end 39.37 -113.03)
+(stroke
+(width 0.254)
+(type solid)
+(color 160 0 0 1)
+)
+(fill
+(type none)
+)
+)
+(circle
+(center -38.1 111.76)
+(radius 0.381)
+(stroke
+(width 0.254)
+(type solid)
+(color 0 0 0 1)
+)
+(fill
+(type none)
+)
+)
+(pin passive line
+(at -41.91 110.49 0)
+(length 2.54)
+(name "GPIO30/CANRXA/XA18"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "1"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at -41.91 87.63 0)
+(length 2.54)
+(name "GPIO3/EPWM2B/ECAP5/MCLKRB"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "10"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -82.55 180)
+(length 2.54)
+(name "GPIO58/MCLKRA/XD21"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "100"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -80.01 180)
+(length 2.54)
+(name "VDD"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "101"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -77.47 180)
+(length 2.54)
+(name "X2"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "102"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -74.93 180)
+(length 2.54)
+(name "VSS"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "103"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -72.39 180)
+(length 2.54)
+(name "X1"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "104"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -69.85 180)
+(length 2.54)
+(name "XCLKIN"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "105"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+)
+(pin passive line
+(at 41.91 -67.31 180)
+(length 2.54)
+(name "VSS"
+(effects
+(font
+(size 1.27 1.27)
+)
+)
+)
+(number "106"
+(effects
+(font
+(size 1.27 1.27
