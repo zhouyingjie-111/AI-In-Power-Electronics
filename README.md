@@ -422,7 +422,7 @@ git push origin feature/your-feature-name
 
 **⭐ 如果这个项目对您有帮助，请给我们一个Star！⭐**
 
-Made with ❤️ by 南航电力电子团队
+南航电力电子团队
 
 </div>
 
