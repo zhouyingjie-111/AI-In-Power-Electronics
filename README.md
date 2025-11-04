@@ -1,4 +1,4 @@
-# AI+电力电子 智能设计平台 🚀
+# AI+电力电子智能设计平台 🚀
 
 <div align="center">
 
@@ -7,7 +7,7 @@
 ![MATLAB](https://img.shields.io/badge/MATLAB-R2024b+-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**基于AI的电力电子参数优化设计与仿真验证平台**
+**从指标到硬件AI+电力电子设计系统**
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [使用指南](#-使用指南) • [技术栈](#-技术栈) • [贡献指南](#-贡献指南) 
 
