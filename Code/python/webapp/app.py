@@ -1,402 +1,699 @@
-import os
-import csv
-import sys
-import socket
-import logging
-import subprocess
-import threading
-import queue
-import uuid
-import json
-import datetime
-import time
+"""
+AI+电力电子智能设计平台 - Flask Web应用
+==========================================
+
+本应用提供了完整的Web界面，集成了以下功能：
+1. 用户认证与权限管理
+2. PPO参数优化任务管理
+3. MATLAB/Simulink仿真控制
+4. EDA自动化设计（KiCad集成）
+5. 远程桌面控制（鼠标/键盘）
+6. 数据库维护管理
+
+技术栈：
+- Flask: Web框架
+- MATLAB Engine: 仿真接口
+- Win32 API: Windows自动化
+"""
+
+# ==================== 标准库导入 ====================
+import os           # 操作系统接口
+import csv          # CSV文件处理
+import sys          # 系统相关功能
+import socket       # 网络通信
+import logging      # 日志记录
+import subprocess   # 子进程管理
+import threading    # 多线程支持
+import queue        # 线程安全队列
+import uuid         # 唯一标识符生成
+import json         # JSON数据处理
+import datetime     # 日期时间处理
+import time         # 时间相关功能
+
+# ==================== 类型注解 ====================
 from typing import List, Dict, Any, Optional, Tuple
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, stream_with_context, send_file
-from io import BytesIO
+
+# ==================== Flask框架 ====================
+from flask import (
+    Flask,              # Flask应用对象
+    render_template,    # 模板渲染
+    request,            # HTTP请求对象
+    redirect,           # 重定向
+    url_for,            # URL生成
+    session,            # 会话管理
+    jsonify,            # JSON响应
+    Response,           # HTTP响应对象
+    stream_with_context,# 流式响应上下文
+    send_file           # 文件发送
+)
+from io import BytesIO  # 内存字节流
+
+# ==================== 可选依赖导入（优雅降级） ====================
+# 以下依赖为可选功能，缺失时不影响核心功能，只是相应功能不可用
+
+# 屏幕截图库（用于远程桌面功能）
 try:
-    import mss  # type: ignore
+    import mss  # type: ignore  # 高性能屏幕截图库
 except Exception:
-    mss = None  # type: ignore
+    mss = None  # type: ignore  # 如果未安装，远程桌面功能不可用
+
+# 图像处理库（用于屏幕截图转换）
 try:
-    from PIL import Image  # type: ignore
+    from PIL import Image  # type: ignore  # Python图像处理库
 except Exception:
-    Image = None  # type: ignore
+    Image = None  # type: ignore  # 如果未安装，将无法转换图像格式
+
+# Windows GUI控制库（用于窗口管理和远程控制）
 try:
-    import win32gui  # type: ignore
-    import win32con  # type: ignore
+    import win32gui  # type: ignore  # Windows GUI API
+    import win32con  # type: ignore  # Windows常量定义
 except Exception:
     win32gui = None  # type: ignore
     win32con = None  # type: ignore
 
+# Windows API扩展（用于鼠标键盘控制）
 try:
-    import win32api  # type: ignore
+    import win32api  # type: ignore  # Windows API接口
 except Exception:
     win32api = None  # type: ignore
 
+# Windows进程管理（用于进程和线程操作）
 try:
-    import win32process  # type: ignore
+    import win32process  # type: ignore  # Windows进程API
 except Exception:
     win32process = None  # type: ignore
+
+# Windows剪贴板操作（用于文本输入）
 try:
-    import win32clipboard  # type: ignore
+    import win32clipboard  # type: ignore  # Windows剪贴板API
 except Exception:
     win32clipboard = None  # type: ignore
+
+# 确保Win32模块一致性（重复导入以保证兼容性）
 try:
-    import win32api, win32con, win32gui  # already imported above but ensure consistency
+    import win32api, win32con, win32gui
 except Exception:
     pass
 
+# OpenAI客户端（用于智能对话功能）
 try:
-    from openai import OpenAI
+    from openai import OpenAI  # OpenAI API客户端
 except Exception:
-    OpenAI = None  # type: ignore
+    OpenAI = None  # type: ignore  # 如果未安装，智能对话功能不可用
 
+# MATLAB引擎（用于Simulink仿真）
 try:
-    import matlab.engine  # type: ignore
+    import matlab.engine  # type: ignore  # MATLAB Engine API for Python
 except Exception:
-    matlab = None  # type: ignore
+    matlab = None  # type: ignore  # 如果未安装，仿真功能不可用
 
+# 进程管理库（用于系统监控）
 try:
-    import psutil  # type: ignore
+    import psutil  # type: ignore  # 跨平台进程和系统监控
 except Exception:
-    psutil = None  # type: ignore
+    psutil = None  # type: ignore  # 如果未安装，部分监控功能不可用
 
+# ==================== Windows常量定义 ====================
 # 定义Windows常量（防止某些系统缺少这些常量）
 if win32con:
+    # 窗口Z轴顺序常量
     if not hasattr(win32con, 'HWND_TOPMOST'):
-        win32con.HWND_TOPMOST = -1
+        win32con.HWND_TOPMOST = -1      # 窗口置顶
     if not hasattr(win32con, 'HWND_NOTOPMOST'):
-        win32con.HWND_NOTOPMOST = -2
+        win32con.HWND_NOTOPMOST = -2    # 取消窗口置顶
+    
+    # 窗口位置和大小标志
     if not hasattr(win32con, 'SWP_NOMOVE'):
-        win32con.SWP_NOMOVE = 0x0002
+        win32con.SWP_NOMOVE = 0x0002    # 不改变位置
     if not hasattr(win32con, 'SWP_NOSIZE'):
-        win32con.SWP_NOSIZE = 0x0001
+        win32con.SWP_NOSIZE = 0x0001    # 不改变大小
     if not hasattr(win32con, 'SWP_SHOWWINDOW'):
-        win32con.SWP_SHOWWINDOW = 0x0040
+        win32con.SWP_SHOWWINDOW = 0x0040  # 显示窗口
+    
+    # 窗口显示状态常量
     if not hasattr(win32con, 'SW_RESTORE'):
-        win32con.SW_RESTORE = 9
+        win32con.SW_RESTORE = 9         # 恢复窗口
     if not hasattr(win32con, 'SW_SHOW'):
-        win32con.SW_SHOW = 5
+        win32con.SW_SHOW = 5            # 显示窗口
 
-# 减少噪声
+# ==================== 日志配置 ====================
+# 减少第三方库的日志噪声，只显示关键错误信息
+
+# Ngrok日志配置（公网穿透工具）
 logging.getLogger("pyngrok").setLevel(logging.CRITICAL)
 logging.getLogger("pyngrok.process.ngrok").setLevel(logging.CRITICAL)
-os.environ.setdefault("NGROK_UPDATE", "false")
+os.environ.setdefault("NGROK_UPDATE", "false")  # 禁用Ngrok自动更新检查
 
-# 配置waitress日志级别
+# Waitress日志配置（WSGI服务器）
 logging.getLogger("waitress.queue").setLevel(logging.ERROR)
 logging.getLogger("waitress").setLevel(logging.WARNING)
 
-# 配置werkzeug日志级别
+# Werkzeug日志配置（Flask开发服务器）
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
+# ==================== Flask应用初始化 ====================
+# 创建Flask应用实例
 app = Flask(__name__, template_folder="templates", static_folder="static")
+
+# 会话密钥（用于加密session数据）
+# 优先使用环境变量，开发环境使用默认密钥
 app.secret_key = os.environ.get("WEBAPP_SECRET_KEY", "dev-secret-key")
 
-# 配置Flask应用
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 禁用静态文件缓存
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 最大请求体16MB
-# 会话 Cookie 基本配置（默认本地开发安全、兼容性）
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 默认本地
-app.config['SESSION_COOKIE_SECURE'] = False    # 动态根据请求切换
+# ==================== Flask应用配置 ====================
+# 禁用静态文件缓存（确保开发时看到最新文件）
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# 添加请求处理中间件
+# 设置最大请求体大小为16MB（防止大文件上传导致内存溢出）
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+# ==================== 会话Cookie配置 ====================
+# 默认配置适用于本地开发环境，公网环境会动态调整
+
+# HttpOnly: 防止JavaScript访问Cookie（安全性）
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+# SameSite: 防止CSRF攻击
+# Lax: 允许GET请求携带Cookie，适合本地环境
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Secure: 是否仅在HTTPS下发送Cookie
+# 本地环境设为False，公网HTTPS环境会在中间件中动态设为True
+app.config['SESSION_COOKIE_SECURE'] = False
+
+# ==================== Flask请求中间件 ====================
+
 @app.before_request
 def before_request():
-    # 设置请求开始时间
+    """
+    请求预处理中间件
+    
+    功能：
+    1. 记录请求开始时间（用于性能分析）
+    2. 更新会话访问时间（用于会话管理）
+    3. 动态调整Cookie策略（适应本地/公网环境）
+    4. 强制用户认证（除白名单路径外）
+    """
+    # 设置请求开始时间，用于计算请求处理时长
     request.start_time = time.time()
-    # 更新session访问时间
+    
+    # 更新session最后访问时间，用于清理过期会话
     update_session_access()
-    # 动态判断公网/HTTPS环境，调整会话 Cookie 以避免跨域/HTTPS 丢失
+    
+    # ========== 动态Cookie策略调整 ==========
+    # 根据请求协议（HTTP/HTTPS）动态调整Cookie安全策略
     try:
+        # 检查是否为HTTPS请求
         xf_proto = (request.headers.get('X-Forwarded-Proto') or '').lower()
         is_https = bool(getattr(request, 'is_secure', False)) or ('https' in xf_proto)
+        
         if is_https:
-            # 公网/HTTPS：Chrome 等要求 SameSite=None 必须搭配 Secure
-            app.config['SESSION_COOKIE_SECURE'] = True
-            app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+            # 公网/HTTPS环境：Chrome等浏览器要求SameSite=None必须搭配Secure
+            app.config['SESSION_COOKIE_SECURE'] = True   # 仅HTTPS传输
+            app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # 允许跨站请求
         else:
-            app.config['SESSION_COOKIE_SECURE'] = False
-            app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+            # 本地HTTP环境：使用默认配置
+            app.config['SESSION_COOKIE_SECURE'] = False  # 允许HTTP传输
+            app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 部分跨站保护
     except Exception:
-        pass
-    # 强制先进行用户分级（除去分级页与静态/api健康等白名单）
+        pass  # 配置失败不影响主流程
+    
+    # ========== 用户认证检查 ==========
+    # 强制用户在访问功能页面前先进行角色选择（管理员/普通用户）
     try:
         path = request.path or "/"
+        
+        # 白名单：无需认证即可访问的路径
         whitelist = {
-            "/role", "/role/set", "/api/role/set", "/health",
-            "/api/stream/matlab", "/api/run/stream", "/api/run/poll"
+            "/role",                    # 角色选择页面
+            "/role/set",                # 角色设置接口
+            "/api/role/set",            # API角色设置
+            "/health",                  # 健康检查
+            "/api/stream/matlab",       # MATLAB流式传输
+            "/api/run/stream",          # 任务流式输出
+            "/api/run/poll"             # 任务轮询
         }
+        
+        # 静态文件和大部分API无需认证
         if path.startswith("/static/") or path.startswith("/api/") and path not in {"/api/stream/matlab", "/api/run/stream", "/api/run/poll"}:
-            return None
+            return None  # 直接放行
+        
+        # 其他路径需要认证
         if path not in whitelist:
-            if not session.get("role"):
-                return redirect(url_for("role_select"))
+            if not session.get("role"):  # 检查是否已选择角色
+                return redirect(url_for("role_select"))  # 重定向到角色选择页
     except Exception:
-        pass
+        pass  # 认证检查失败不影响主流程
 
 @app.after_request
 def after_request(response):
-    # 记录请求处理时间
+    """
+    请求后处理中间件
+    
+    功能：
+    1. 记录慢请求（超过1秒）
+    2. 添加安全响应头
+    """
+    # ========== 性能监控 ==========
+    # 记录请求处理时间，识别性能瓶颈
     if hasattr(request, 'start_time'):
         duration = time.time() - request.start_time
-        if duration > 1.0:  # 只记录超过1秒的请求
+        if duration > 1.0:  # 只记录超过1秒的慢请求
             print(f"[slow_request] {request.method} {request.path} took {duration:.2f}s")
     
-    # 添加性能优化头部
+    # ========== 安全响应头 ==========
+    # 添加安全相关的HTTP响应头，防止常见Web攻击
+    
+    # 防止MIME类型嗅探（防止XSS攻击）
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # 防止页面被嵌入iframe（防止点击劫持）
     response.headers['X-Frame-Options'] = 'DENY'
+    
+    # 启用XSS保护（浏览器内置）
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
     return response
 
-# ---------------- Process runner state ----------------
+# ==================== 全局状态管理 ====================
+
+# ---------------- 运行任务状态 ----------------
+# 存储所有正在运行的后台任务（PPO训练、仿真等）
+# 键: run_id（UUID字符串）
+# 值: {proc: 进程对象, queue: 输出队列, buffer: 输出缓冲, start_time: 开始时间}
 RUNS: Dict[str, Dict[str, Any]] = {}
-RUNS_LOCK = threading.Lock()
+RUNS_LOCK = threading.Lock()  # 线程锁，保证并发安全
 
-# ---------------- Session data storage ----------------
+# ---------------- 会话数据存储 ----------------
+# 服务器端会话数据存储（比Flask session更可靠）
+# 键: session_id（UUID字符串）
+# 值: {用户数据字典}
 SESSION_DATA: Dict[str, Dict[str, Any]] = {}
-SESSION_DATA_LOCK = threading.Lock()
+SESSION_DATA_LOCK = threading.Lock()  # 线程锁
 
-# ---------------- Quick phrases state ----------------
+# ---------------- 快捷短语配置 ----------------
+# 快捷短语配置文件路径（用于智能对话）
 QUICK_PHRASES_FILE = os.path.join(os.path.dirname(__file__), "quick_phrases.json")
 
-# ---------------- MATLAB Engine (lazy) ----------------
+# ---------------- MATLAB引擎（延迟加载） ----------------
+# MATLAB引擎全局单例（按需启动，避免启动延迟）
 MATLAB_ENGINE = None
-MATLAB_ENGINE_LOCK = threading.Lock()
+MATLAB_ENGINE_LOCK = threading.Lock()  # 引擎访问锁
 
 def get_matlab_engine():
+    """
+    获取MATLAB引擎单例
+    
+    采用延迟初始化策略，只在首次调用时启动MATLAB引擎。
+    使用全局锁保证线程安全。
+    
+    Returns:
+        matlab.engine.MatlabEngine: MATLAB引擎实例，如果MATLAB未安装则返回None
+    """
     global MATLAB_ENGINE
+    
+    # 检查MATLAB模块是否可用
     if matlab is None:
         return None
+    
+    # 线程安全的单例创建
     with MATLAB_ENGINE_LOCK:
         if MATLAB_ENGINE is None:
             try:
+                # 启动MATLAB引擎（可能需要几秒钟）
                 MATLAB_ENGINE = matlab.engine.start_matlab()
             except Exception:
-                MATLAB_ENGINE = None
+                MATLAB_ENGINE = None  # 启动失败
         return MATLAB_ENGINE
 
-# ---------------- Remote control password storage ----------------
+# ==================== 密码和认证配置 ====================
+
+# 应用目录路径
 APP_DIR = os.path.dirname(__file__)
-REMOTE_MOUSE_PW_FILE = os.path.join(APP_DIR, "remote_mouse_password.txt")
-REMOTE_KEYBOARD_PW_FILE = os.path.join(APP_DIR, "remote_keyboard_password.txt")
-ROLES_PW_FILE = os.path.join(APP_DIR, "roles_passwords.json")
+
+# 远程控制密码文件路径
+REMOTE_MOUSE_PW_FILE = os.path.join(APP_DIR, "remote_mouse_password.txt")      # 鼠标控制密码
+REMOTE_KEYBOARD_PW_FILE = os.path.join(APP_DIR, "remote_keyboard_password.txt")  # 键盘控制密码
+ROLES_PW_FILE = os.path.join(APP_DIR, "roles_passwords.json")                   # 角色登录密码
 
 def _read_password(file_path: str) -> Optional[str]:
+    """
+    从文件读取密码
+    
+    Args:
+        file_path: 密码文件路径
+        
+    Returns:
+        Optional[str]: 密码字符串，文件不存在或为空则返回None
+    """
     try:
         if not os.path.isfile(file_path):
             return None
         with open(file_path, 'r', encoding='utf-8') as f:
             pw = f.read().strip()
-            return pw or None
+            return pw or None  # 空字符串返回None
     except Exception:
-        return None
+        return None  # 读取失败返回None
 
 def _ensure_roles_passwords() -> Dict[str, str]:
-    # 创建或读取统一的角色密码文件
+    """
+    确保角色密码文件存在，不存在则创建默认配置
+    
+    Returns:
+        Dict[str, str]: {"admin": "管理员密码", "user": "用户密码"}
+    """
     try:
+        # 如果文件不存在，创建默认密码文件
         if not os.path.isfile(ROLES_PW_FILE):
             with open(ROLES_PW_FILE, 'w', encoding='utf-8') as f:
+                # 默认密码都是"1234"（首次部署后应立即修改）
                 json.dump({"admin": "1234", "user": "1234"}, f, ensure_ascii=False, indent=2)
+        
+        # 读取密码文件
         with open(ROLES_PW_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
             admin_pw = str(data.get("admin", "")).strip()
             user_pw = str(data.get("user", "")).strip()
             return {"admin": admin_pw, "user": user_pw}
     except Exception:
-        return {"admin": "", "user": ""}
+        return {"admin": "", "user": ""}  # 读取失败返回空密码
 
+# ==================== 任务管理系统 ====================
 
-# ---------------- Running Tasks Management ----------------
-
-# 全局运行任务管理
+# 全局运行任务字典（重复定义，用于向后兼容）
 RUNS: Dict[str, Dict[str, Any]] = {}
 RUNS_LOCK = threading.Lock()
 
 def resolve_script_by_task(task: str) -> Optional[str]:
+    """
+    根据任务类型解析对应的Python脚本路径
+    
+    任务映射：
+    - ppo: PPO参数优化 (PPO_main.py)
+    - run_sim: Simulink仿真验证 (run_simulink.py)
+    - run_sim_def: 自定义参数仿真 (run_defined_simulink.py)
+    
+    Args:
+        task: 任务类型标识符
+        
+    Returns:
+        Optional[str]: 脚本绝对路径，找不到返回None
+    """
     mt_dir, ppo_dir = get_repo_roots()
-    # New mapping:
-    # ppo -> Parameter design (PPO.py)
-    # run_sim -> Simulation verification (run_simulink.py)
-    # run_sim_def -> Custom simulation verification (run_defined_simulink.py)
+    
+    # 任务类型到脚本的映射
     if task == "ppo":
+        # PPO参数优化任务
         path = os.path.join(ppo_dir, "PPO_main.py")
         return path if os.path.isfile(path) else None
     if task == "run_sim":
+        # 使用优化参数的Simulink仿真
         path = os.path.join(ppo_dir, "run_simulink.py")
         return path if os.path.isfile(path) else None
     if task == "run_sim_def":
+        # 使用自定义参数的Simulink仿真
         path = os.path.join(ppo_dir, "run_defined_simulink.py")
         return path if os.path.isfile(path) else None
-    return None
+    
+    return None  # 未知任务类型
 
 def run_python_script_realtime(script_path: str, cwd: Optional[str] = None, extra_args: Optional[List[str]] = None) -> str:
-    """运行Python脚本并实时返回输出"""
+    """
+    在后台运行Python脚本并实时捕获输出
+    
+    使用子进程执行Python脚本，创建独立的读取线程实时捕获stdout/stderr输出，
+    并通过队列和缓冲区提供给前端。支持Server-Sent Events流式传输。
+    
+    Args:
+        script_path: Python脚本绝对路径
+        cwd: 工作目录（可选）
+        extra_args: 额外的命令行参数（可选）
+        
+    Returns:
+        str: 运行ID（UUID），用于后续查询和控制
+    """
+    # 生成唯一的运行ID
     run_id = str(uuid.uuid4())
     
     def reader_thread() -> None:
+        """
+        后台线程：读取子进程输出
+        
+        功能：
+        1. 启动子进程执行Python脚本
+        2. 实时读取stdout/stderr输出
+        3. 解码输出并放入队列和缓冲区
+        4. 处理编码错误和异常情况
+        """
         try:
+            # ========== 构建命令行 ==========
+            # -u: 无缓冲模式，确保实时输出
             cmd = [sys.executable, "-u", script_path]
             if extra_args:
-                cmd.extend(extra_args)
+                cmd.extend(extra_args)  # 添加额外参数
             
+            # ========== 环境变量配置 ==========
+            # 复制当前环境变量，并设置UTF-8相关配置
             env = os.environ.copy()
-            env.setdefault("PYTHONIOENCODING", "utf-8")
-            env.setdefault("PYTHONUTF8", "1")
-            env.setdefault("PYTHONUNBUFFERED", "1")
+            env.setdefault("PYTHONIOENCODING", "utf-8")   # Python I/O编码
+            env.setdefault("PYTHONUTF8", "1")             # Python 3.7+ UTF-8模式
+            env.setdefault("PYTHONUNBUFFERED", "1")       # 禁用输出缓冲
 
+            # ========== 启动子进程 ==========
             proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
-                text=False,
-                bufsize=0,
-                cwd=cwd,
-                env=env,
+                cmd,                        # 命令行参数列表
+                stdout=subprocess.PIPE,     # 捕获标准输出
+                stderr=subprocess.STDOUT,   # 将标准错误重定向到标准输出
+                stdin=subprocess.PIPE,      # 提供标准输入（用于交互）
+                text=False,                 # 二进制模式（手动解码）
+                bufsize=0,                  # 无缓冲（实时输出）
+                cwd=cwd,                    # 工作目录
+                env=env,                    # 环境变量
             )
             
+            # ========== 创建输出队列 ==========
             q: queue.Queue[str] = queue.Queue()
             
+            # ========== 注册运行任务 ==========
+            # 将任务信息存入全局字典，供API查询
             with RUNS_LOCK:
                 RUNS[run_id] = {
-                    "proc": proc,
-                    "queue": q,
-                    "buffer": [],
-                    "start_time": time.time()
+                    "proc": proc,               # 进程对象
+                    "queue": q,                 # 输出队列（实时流）
+                    "buffer": [],               # 输出缓冲（完整历史）
+                    "start_time": time.time()   # 开始时间
                 }
             
-            # 读取输出
+            # ========== 读取进程输出 ==========
+            # 逐行读取stdout，直到进程结束
             assert proc.stdout is not None
             for raw in proc.stdout:
                 try:
+                    # 尝试智能解码（支持UTF-8/GBK）
                     line = smart_decode(raw).rstrip("\r\n")
                 except Exception:
-                    # Fallback: replace undecodable chars
+                    # 解码失败时的降级处理
                     try:
+                        # 使用replace模式，替换无法解码的字符
                         line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
                     except Exception:
+                        # 最后的降级：标记为解码错误
                         line = "[decode_error]"
+                
+                # 将非空行放入队列和缓冲区
                 if line:
-                    q.put(line)
+                    q.put(line)  # 放入队列供流式传输
                     with RUNS_LOCK:
                         if run_id in RUNS:
-                            RUNS[run_id]["buffer"].append(line)
+                            RUNS[run_id]["buffer"].append(line)  # 追加到缓冲区
             
+            # ========== 标记进程结束 ==========
+            # 发送结束标记到队列
             q.put("[runner] __PROC_EOF__")
             
         except Exception as e:
+            # ========== 错误处理 ==========
+            # 记录错误信息到任务状态
             with RUNS_LOCK:
                 if run_id in RUNS:
                     RUNS[run_id]["error"] = str(e)
             print(f"Error in reader_thread: {e}")
     
-    # 启动读取线程
+    # ========== 启动读取线程 ==========
+    # daemon=True: 主程序退出时，线程自动结束
     thread = threading.Thread(target=reader_thread, daemon=True)
     thread.start()
     
-    return run_id
+    return run_id  # 返回运行ID供前端使用
 
-# ---------------- Role selection (Admin/User) ----------------
+# ==================== 用户认证与角色管理 ====================
 
 def load_roles_passwords() -> Dict[str, str]:
-    """从 JSON 文件加载角色密码"""
+    """
+    从JSON文件加载角色密码配置
+    
+    Returns:
+        Dict[str, str]: 角色密码字典 {"admin": "密码", "user": "密码"}
+    """
     try:
         roles_file = os.path.join(os.path.dirname(__file__), "roles_passwords.json")
         with open(roles_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"Error loading roles passwords: {e}")
-        return {"admin": "", "user": ""}
+        return {"admin": "", "user": ""}  # 加载失败返回空密码
+
+# ========== 角色选择路由 ==========
 
 @app.route("/role", methods=["GET"])
 def role_select():
-    # 简化的用户登录页面，不区分用户类别
+    """
+    显示角色选择页面（登录页）
+    
+    用户需要选择角色（管理员/普通用户）并输入密码
+    """
     return render_template("role.html", title="用户登录")
 
 
 @app.route("/role/set", methods=["POST"])
 def role_set():
+    """
+    处理角色选择表单提交（Web表单方式）
+    
+    验证密码后设置session，成功则跳转主页，失败则显示错误
+    """
+    # 获取表单数据
     role = (request.form.get("role") or "").strip()
     password = (request.form.get("password") or "").strip()
     
+    # 验证角色类型
     if role not in {"admin", "user"}:
         return redirect(url_for("role_select"))
     
-    # 从 JSON 文件读取密码进行验证
+    # 从JSON文件读取密码进行验证
     roles_passwords = load_roles_passwords()
     expected_password = roles_passwords.get(role, "")
     
+    # 密码验证
     if password == expected_password:
-        session["role"] = role
-        session["username"] = role
-        return redirect(url_for("index"))
+        # 验证成功：设置session并跳转主页
+        session["role"] = role          # 设置角色
+        session["username"] = role      # 设置用户名
+        return redirect(url_for("index"))  # 跳转到主页
     else:
+        # 验证失败：返回登录页并显示错误
         return render_template("role.html", title="用户登录", error="密码错误")
 
 
 @app.route("/api/role/set", methods=["POST"])
 def api_role_set():
-    """用户登录接口"""
+    """
+    API方式的用户登录接口
+    
+    接受JSON格式的登录请求，返回JSON格式的响应
+    
+    请求格式：
+        {"role": "admin|user", "password": "密码"}
+    
+    响应格式：
+        成功: {"ok": True, "role": "角色"}
+        失败: {"error": "错误类型"}, HTTP状态码400/403
+    """
+    # 解析JSON请求体
     payload = request.get_json(silent=True) or {}
     role = (payload.get("role") or "").strip()
     password = (payload.get("password") or "").strip()
     
+    # 验证角色类型
     if role not in {"admin", "user"}:
         return jsonify({"error": "invalid_role"}), 400
     
-    # 从 JSON 文件读取密码进行验证
+    # 从JSON文件读取密码进行验证
     roles_passwords = load_roles_passwords()
     expected_password = roles_passwords.get(role, "")
     
+    # 密码验证
     if password == expected_password:
+        # 验证成功：设置session
         session["role"] = role
         session["username"] = role
         return jsonify({"ok": True, "role": role})
     else:
+        # 验证失败：返回403 Forbidden
         return jsonify({"error": "bad_password"}), 403
 
 
 @app.route("/logout", methods=["POST", "GET"])
 def logout():
+    """
+    用户登出
+    
+    清除session中的角色信息和服务器端数据，重定向到登录页
+    """
     try:
+        # 清除session中的角色
         session.pop("role", None)
     except Exception:
-        pass
+        pass  # 清除失败不影响流程
+    
     try:
+        # 清除服务器端session数据
         clear_session_data()
     except Exception:
-        pass
+        pass  # 清除失败不影响流程
+    
+    # 重定向到角色选择页
     return redirect(url_for("role_select"))
 
+# ==================== 工具函数 ====================
+
 def _get_default_simulink_model_path() -> Optional[str]:
-    # 尝试从项目的 Simulink 目录选择一个 .slx 文件作为默认模型
+    """
+    获取默认的Simulink模型文件路径
+    
+    从项目的Simulink目录查找.slx文件，优先返回常用模型。
+    
+    Returns:
+        Optional[str]: 模型文件绝对路径，找不到返回None
+    """
     try:
+        # 计算项目根目录：webapp -> python -> Code -> 根目录
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
         simulink_dir = os.path.join(project_root, 'Simulink')
+        
+        # 检查Simulink目录是否存在
         if not os.path.isdir(simulink_dir):
             return None
-        # 优先常用名
+        
+        # 优先查找常用模型名称
         preferred = [
-            'Interleaved_parallel_buck.slx',
-            'Interleaved_parallel_buck_test.slx',
+            'Interleaved_parallel_buck.slx',        # 交错并联Buck模型
+            'Interleaved_parallel_buck_test.slx',   # 测试模型
         ]
         for name in preferred:
             p = os.path.join(simulink_dir, name)
             if os.path.isfile(p):
-                return p
-        # 否则取第一个 .slx
+                return p  # 找到则立即返回
+        
+        # 如果没有找到优先模型，返回第一个.slx文件
         for fn in os.listdir(simulink_dir):
             if fn.lower().endswith('.slx'):
                 return os.path.join(simulink_dir, fn)
-        return None
+        
+        return None  # 没有找到任何.slx文件
     except Exception:
-        return None
+        return None  # 发生异常返回None
 
 
 def require_openai_client() -> Any:
+    """
+    检查OpenAI客户端是否可用
+    
+    Returns:
+        OpenAI类: OpenAI客户端类
+        
+    Raises:
+        RuntimeError: OpenAI库未安装
+    """
     if OpenAI is None:
         print("[startup] Missing dependency: openai. Install via: pip install openai", file=sys.stderr)
         raise RuntimeError("OpenAI client not installed")
@@ -404,283 +701,368 @@ def require_openai_client() -> Any:
 
 
 def has_server_api_key() -> bool:
+    """
+    检查服务器是否配置了OpenAI API密钥
+    
+    Returns:
+        bool: 有密钥返回True，否则返回False
+    """
     return bool(os.environ.get("OPENAI_API_KEY", "").strip())
 
 
 def get_client() -> Any:
+    """
+    获取配置好的OpenAI客户端
+    
+    优先使用session中的API密钥，否则使用环境变量。
+    同时支持自定义base_url（用于API代理）。
+    
+    Returns:
+        OpenAI: 配置好的OpenAI客户端实例
+        
+    Raises:
+        RuntimeError: 缺少API密钥
+    """
+    # 获取API密钥（session优先级高于环境变量）
     api_key: str = session.get("api_key") or os.environ.get("OPENAI_API_KEY", "").strip()
+    
+    # 获取API基础URL（支持代理）
     base_url: str = session.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com").strip()
+    
+    # 验证API密钥
     if not api_key:
         raise RuntimeError("Missing API key. Set it on the configuration page or via OPENAI_API_KEY.")
+    
+    # 创建OpenAI客户端
     Client = require_openai_client()
     return Client(api_key=api_key, base_url=base_url)
 
 
 def get_repo_roots() -> Tuple[str, str]:
-    # webapp/app.py -> .../Code/python/webapp
+    """
+    获取MT-ResNet和PPO模块的根目录路径
+    
+    从webapp目录向上导航，定位到MT-ResNet和PPO文件夹。
+    
+    Returns:
+        Tuple[str, str]: (MT-ResNet目录, PPO目录)
+    """
+    # webapp/app.py -> Code/python/webapp -> Code/python
     code_python_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    
+    # 计算MT-ResNet和PPO目录路径
     mt_dir = os.path.join(code_python_dir, "MT-ResNet")
     ppo_dir = os.path.join(code_python_dir, "PPO")
+    
     return mt_dir, ppo_dir
 
 
 def smart_decode(data: bytes) -> str:
+    """
+    智能解码字节数据（支持多种编码）
+    
+    尝试顺序：UTF-8 -> GBK -> UTF-8 with replace
+    适配Windows中文环境和UTF-8环境。
+    
+    Args:
+        data: 字节数据
+        
+    Returns:
+        str: 解码后的字符串
+    """
     try:
-        return data.decode("utf-8")
+        return data.decode("utf-8")  # 首选UTF-8
     except Exception:
         try:
-            return data.decode("gbk")
+            return data.decode("gbk")  # Windows中文编码
         except Exception:
-            return data.decode("utf-8", errors="replace")
+            return data.decode("utf-8", errors="replace")  # 降级：替换无法解码的字符
 
 
 def run_python_script(script_path: str, cwd: Optional[str] = None, timeout_sec: int = 300, extra_args: Optional[List[str]] = None) -> Tuple[int, str, str]:
+    """
+    同步运行Python脚本（阻塞直到完成）
+    
+    与run_python_script_realtime不同，此函数会阻塞直到脚本执行完成，
+    适用于快速执行的脚本。
+    
+    Args:
+        script_path: Python脚本路径
+        cwd: 工作目录（可选）
+        timeout_sec: 超时时间（秒），默认300秒
+        extra_args: 额外参数（可选）
+        
+    Returns:
+        Tuple[int, str, str]: (返回码, 标准输出, 标准错误)
+    """
+    # 构建命令行
     python_exe = sys.executable
     args = [python_exe, "-u", script_path]
     if extra_args:
         args.extend(extra_args)
+    
+    # 配置环境变量
     env = os.environ.copy()
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONUNBUFFERED", "1")
+    
     try:
+        # 运行脚本并等待完成
         completed = subprocess.run(
             args,
-            cwd=cwd or os.path.dirname(script_path),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=timeout_sec,
-            text=False,
-            env=env,
+            cwd=cwd or os.path.dirname(script_path),  # 工作目录
+            stdout=subprocess.PIPE,                    # 捕获stdout
+            stderr=subprocess.PIPE,                    # 捕获stderr
+            timeout=timeout_sec,                       # 设置超时
+            text=False,                                # 二进制模式
+            env=env,                                   # 环境变量
         )
+        
+        # 解码输出
         out = smart_decode(completed.stdout or b"")
         err = smart_decode(completed.stderr or b"")
+        
         return completed.returncode, out, err
+        
     except subprocess.TimeoutExpired as exc:
+        # 超时异常处理
         out = smart_decode(exc.stdout or b"") if hasattr(exc, "stdout") else ""
         err = smart_decode(exc.stderr or b"") if hasattr(exc, "stderr") else "Timeout"
-        return 124, out, err
+        return 124, out, err  # 返回超时错误码
+        
     except Exception as exc:
+        # 其他异常处理
         return 1, "", f"Execution error: {exc}"
-
-
-
-
-# ---------- Context windowing & summarization ----------
-
-
-
-
+# ==================== 网络工具函数 ====================
 
 def get_lan_ip() -> str:
+    """
+    获取本机局域网IP地址
+    
+    方法：通过连接外部地址获取本机使用的网卡IP，
+    比gethostbyname更可靠（避免多网卡干扰）。
+    
+    Returns:
+        str: 局域网IP地址，获取失败返回"127.0.0.1"
+    """
     try:
+        # 方法1：创建UDP socket并连接到外部地址（不实际发送数据）
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
+        s.connect(("8.8.8.8", 80))  # 连接Google DNS
+        ip = s.getsockname()[0]      # 获取使用的本地IP
         s.close()
         return ip
     except Exception:
+        # 方法2：通过主机名获取IP（可能不准确）
         try:
             return socket.gethostbyname(socket.gethostname())
         except Exception:
+            # 降级：返回本地回环地址
             return "127.0.0.1"
 
 
-
-def normalize_output_format(text: str) -> str:
-    """规范化输出格式，确保整洁规范"""
-    if not text:
-        return ""
-    
-    import re
-    
-    # 去除零宽字符和特殊字符
-    text = text.replace('\u200b', '').replace('\u200c', '').replace('\u200d', '').replace('\ufeff', '')
-    
-    # 规范化换行符
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    
-    # 处理转义的换行符
-    text = text.replace('\\n', '\n')
-    
-    # 修复标点符号被错误换行的问题
-    text = re.sub(r'([：。，；！？])\s*\n\s*', r'\1 ', text)
-    text = re.sub(r'([：。，；！？])\s*\n', r'\1 ', text)
-    
-    # 修复不合理的换行 - 在句子中间被强制换行的情况
-    text = re.sub(r'([^。！？\n])\s*\n\s*([^#\*\-\d\s])', r'\1 $2', text)
-    
-    # 修复公式和计算中的换行问题
-    text = re.sub(r'([=≈<>])\s*\n\s*', r'\1 ', text)
-    text = re.sub(r'([A-Za-z_]+)\s*\n\s*([=≈<>])', r'\1 $2', text)
-    
-    # 修复更多格式问题
-    text = re.sub(r'([a-zA-Z0-9])\s*\n\s*([a-zA-Z0-9])', r'\1$2', text)
-    text = re.sub(r'(\d+)\s*\n\s*([a-zA-Z%Ωμµ]+)', r'\1$2', text)
-    
-    # 修复括号内容被换行分割
-    text = re.sub(r'\(\s*\n\s*', r'(', text)
-    text = re.sub(r'\s*\n\s*\)', r')', text)
-    
-    # 修复引号内容被换行分割
-    text = re.sub(r'["""\']\s*\n\s*', r'"', text)
-    text = re.sub(r'\s*\n\s*["""\']', r'"', text)
-    
-    # 修复冒号后的不必要换行
-    text = re.sub(r'：\s*\n\s*([^#\*\-\d\s])', r'：$1', text)
-    
-    # 更强力的换行修复 - 处理更多边缘情况
-    text = re.sub(r'([\u4e00-\u9fff])\s*\n\s*([\u4e00-\u9fff])', r'\1$2', text)
-    text = re.sub(r'([a-zA-Z])\s*\n\s*([a-zA-Z])', r'\1$2', text)
-    text = re.sub(r'(\d+)\s*\n\s*([%Ωμµ°C°F])', r'\1$2', text)
-    
-    # 修复括号内的换行
-    text = re.sub(r'（\s*\n\s*', r'（', text)
-    text = re.sub(r'\s*\n\s*）', r'）', text)
-    
-    # 修复方括号内的换行
-    text = re.sub(r'\[\s*\n\s*', r'[', text)
-    text = re.sub(r'\s*\n\s*\]', r']', text)
-    
-    # 修复数学符号前后的换行
-    text = re.sub(r'([+\-*/=<>])\s*\n\s*', r'\1 ', text)
-    text = re.sub(r'\s*\n\s*([+\-*/=<>])', r' $1', text)
-    
-    # 修复单位符号前的换行
-    text = re.sub(r'(\d+)\s*\n\s*(V|A|W|Hz|kHz|MHz|GHz|Ω|F|μF|mF|H|μH|mH)', r'\1$2', text)
-    
-    # 合并多余空行（最多保留两个连续换行）
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    
-    # 去除首尾空行
-    text = re.sub(r'^\n+', '', text)
-    text = re.sub(r'\n+$', '', text)
-    
-    return text
-
-
-def clean_saved_content(text: str) -> str:
-    """清理保存内容中的转义字符，确保保存格式正确"""
-    if not text:
-        return ""
-    
-    # 处理转义的换行符
-    text = text.replace('\\n', '\n')
-    
-    # 处理其他转义字符
-    text = text.replace('\\t', '\t')
-    text = text.replace('\\r', '\r')
-    
-    # 确保换行符正确
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    
-    return text
-
-# ---------------- Session data management ----------------
+# ==================== 会话数据管理 ====================
+# 服务器端会话数据管理系统
+# 相比Flask自带的session（存储在Cookie中），服务器端存储更安全可靠
 
 def get_session_id() -> str:
-    """获取或创建session ID"""
+    """
+    获取或创建唯一的session ID
+    
+    每个用户会话有唯一的UUID标识符，存储在Flask session中。
+    首次访问时自动创建。
+    
+    Returns:
+        str: Session ID（UUID字符串）
+    """
     session_id = session.get("session_id")
     if not session_id:
+        # 首次访问，生成新的session ID
         session_id = str(uuid.uuid4())
         session["session_id"] = session_id
     return session_id
 
 
 def get_session_data(key: str, default: Any = None) -> Any:
-    """从服务器端存储获取session数据"""
+    """
+    从服务器端存储获取session数据
+    
+    比Flask session更适合存储大量数据或敏感信息。
+    
+    Args:
+        key: 数据键名
+        default: 默认值（键不存在时返回）
+        
+    Returns:
+        Any: 存储的数据值，不存在返回default
+    """
     session_id = get_session_id()
-    with SESSION_DATA_LOCK:
+    with SESSION_DATA_LOCK:  # 线程安全
         if session_id not in SESSION_DATA:
-            SESSION_DATA[session_id] = {}
+            SESSION_DATA[session_id] = {}  # 初始化空字典
         return SESSION_DATA[session_id].get(key, default)
 
 
 def set_session_data(key: str, value: Any) -> None:
-    """设置服务器端session数据"""
+    """
+    设置服务器端session数据
+    
+    Args:
+        key: 数据键名
+        value: 数据值（任意可序列化对象）
+    """
     session_id = get_session_id()
-    with SESSION_DATA_LOCK:
+    with SESSION_DATA_LOCK:  # 线程安全
         if session_id not in SESSION_DATA:
-            SESSION_DATA[session_id] = {}
+            SESSION_DATA[session_id] = {}  # 初始化空字典
         SESSION_DATA[session_id][key] = value
 
 
 def clear_session_data() -> None:
-    """清空服务器端session数据"""
+    """
+    清空当前会话的所有服务器端数据
+    
+    用于登出时清理用户数据。
+    """
     session_id = get_session_id()
-    with SESSION_DATA_LOCK:
+    with SESSION_DATA_LOCK:  # 线程安全
         if session_id in SESSION_DATA:
-            SESSION_DATA[session_id] = {}
+            SESSION_DATA[session_id] = {}  # 清空字典
 
 
 def cleanup_old_sessions() -> None:
-    """清理旧的session数据（超过1小时未使用）"""
+    """
+    清理过期的session数据（超过1小时未使用）
+    
+    定期调用此函数可以释放内存，防止SESSION_DATA无限增长。
+    """
     current_time = time.time()
-    with SESSION_DATA_LOCK:
+    with SESSION_DATA_LOCK:  # 线程安全
         to_remove = []
+        
+        # 找出所有过期的session
         for session_id, data in SESSION_DATA.items():
             last_access = data.get("last_access", 0)
-            if current_time - last_access > 3600:  # 1小时
+            if current_time - last_access > 3600:  # 3600秒 = 1小时
                 to_remove.append(session_id)
         
+        # 删除过期session
         for session_id in to_remove:
             del SESSION_DATA[session_id]
 
 
 def update_session_access() -> None:
-    """更新session访问时间"""
+    """
+    更新session的最后访问时间
+    
+    在before_request中间件中调用，用于跟踪session活跃度。
+    """
     session_id = get_session_id()
-    with SESSION_DATA_LOCK:
+    with SESSION_DATA_LOCK:  # 线程安全
         if session_id in SESSION_DATA:
             SESSION_DATA[session_id]["last_access"] = time.time()
 
 
+# ==================== 页面路由 ====================
+
 @app.route("/", methods=["GET"])
 def index():
-    # 简化的主页面，直接显示功能界面
+    """
+    主页路由 - 显示功能选择界面
+    
+    展示所有可用功能的卡片界面：
+    - 参数设计（PPO优化）
+    - 仿真验证（Simulink）
+    - 原理图/PCB设计（EDA）
+    - 控制器代码生成
+    - 智能对话
+    """
+    # 检查用户是否已登录
     if not session.get("role"):
-        return redirect(url_for("role_select"))
+        return redirect(url_for("role_select"))  # 未登录则跳转到登录页
+    
+    # 渲染主页模板
     return render_template("main.html")
 
 
 @app.route("/health", methods=["GET"])
 def health():
+    """
+    健康检查端点
+    
+    用于监控系统状态，检查OpenAI客户端是否可用。
+    
+    Returns:
+        成功: {"status": "ok"}, 200
+        失败: {"status": "error", "detail": "错误信息"}, 500
+    """
     try:
-        _ = require_openai_client()
+        _ = require_openai_client()  # 检查OpenAI是否可用
         return jsonify({"status": "ok"}), 200
     except Exception as exc:
         return jsonify({"status": "error", "detail": str(exc)}), 500
 
-# --------- Lightweight ping endpoint for measuring preview latency ---------
+
 @app.route("/api/preview/ping", methods=["GET"])
 def api_preview_ping():
-    # Simple endpoint to measure round-trip time from client
-    # Optionally include server timestamp for future use
+    """
+    轻量级ping端点 - 测量客户端到服务器的延迟
+    
+    用于性能测试和网络质量检测。
+    
+    Returns:
+        {"ok": True, "server_ts": 服务器时间戳}
+    """
     return jsonify({"ok": True, "server_ts": time.time()})
+
+# ==================== 任务运行API ====================
+# 用于启动、监控和控制后台Python脚本（PPO训练、Simulink仿真等）
 
 @app.route("/api/run/start", methods=["POST"])
 def run_start():
+    """
+    启动后台任务
+    
+    创建子进程运行指定的Python脚本，并返回run_id用于后续查询。
+    
+    请求格式：
+        {"task": "ppo|run_sim|run_sim_def"}
+    
+    响应格式：
+        成功: {"run_id": "UUID", "next": 初始游标位置}
+        失败: {"error": "错误类型"}, HTTP状态码400/404
+    """
     payload = request.json or {}
     task = (payload.get("task") or "").strip()
-    # Allowed values after remapping
+    
+    # 验证任务类型
+    # ppo: PPO参数优化
+    # run_sim: 使用优化参数的Simulink仿真
+    # run_sim_def: 使用自定义参数的Simulink仿真
     if task not in {"ppo", "run_sim", "run_sim_def"}:
         return jsonify({"error": "invalid_task"}), 400
+    
+    # 解析任务对应的脚本路径
     script = resolve_script_by_task(task)
     if not script:
         return jsonify({"error": "script_not_found"}), 404
+    
+    # 启动后台任务
     run_id = run_python_script_realtime(script_path=script)
 
-    # Wait briefly for the startup line to be appended to buffer to avoid double printing
+    # 等待脚本启动并产生第一行输出（避免前端重复显示启动信息）
     initial_next = 0
-    for _ in range(50):  # up to ~500ms
+    for _ in range(50):  # 最多等待500ms
         with RUNS_LOCK:
             info = RUNS.get(run_id, {})
-            initial_next = len(info.get("buffer", []))
+            initial_next = len(info.get("buffer", []))  # 获取当前缓冲区大小
         if initial_next > 0:
-            break
+            break  # 已有输出，跳出循环
         import time as _t
-        _t.sleep(0.01)
+        _t.sleep(0.01)  # 等待10ms后重试
 
+    # 返回run_id和初始游标位置
     return jsonify({"run_id": run_id, "next": initial_next})
 
 @app.route("/api/run/once", methods=["POST"])
@@ -842,14 +1224,34 @@ def database_manager_page():
 # ==================== 数据库维护管理 API ====================
 
 class CSVDataManager:
-    """CSV数据文件管理类"""
+    """
+    CSV数据文件管理类
+    
+    提供完整的CSV文件CRUD操作，包括：
+    - 文件列表查询
+    - 数据读取（支持分页和搜索）
+    - 记录增删改
+    - 文件导入导出
+    - 文件完整性检查
+    - 旧文件清理
+    
+    管理的目录：
+    - Data/Input_Data: 输入数据（训练数据、标准化参数等）
+    - Visualization: 可视化结果和优化参数
+    """
     
     def __init__(self):
+        """初始化数据管理器，设置数据目录路径"""
+        # 计算项目根目录
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        
+        # 定义管理的数据目录
         self.data_dirs = {
-            'Input_Data': os.path.join(root, "Data", "Input_Data"),
-            'Visualization': os.path.join(root, "Visualization")
+            'Input_Data': os.path.join(root, "Data", "Input_Data"),         # 输入数据目录
+            'Visualization': os.path.join(root, "Visualization")            # 可视化结果目录
         }
+        
+        # 保存根目录路径（用于扫描全局文件）
         self.base_dir = root
     
     def get_all_csv_files(self):

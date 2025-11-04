@@ -1,1 +1,7 @@
 parameter,value
+f(Hz),50000.0
+L(H),1e-06
+C(F),1e-05
+Ron,0.01
+RL,0.01
+RC,0.2

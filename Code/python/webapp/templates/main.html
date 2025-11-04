@@ -323,5 +323,23 @@
       }
     }
   </script>
+  <div id="app"></div>
+  <script type="text/javascript">
+    var webSdkScript = document.createElement('script');
+    webSdkScript.src = 'https://lf-cdn.coze.cn/obj/unpkg/flow-platform/builder-web-sdk/0.1.1-beta.1/dist/umd/index.js';
+    document.head.appendChild(webSdkScript);
+    webSdkScript.onload = function () {
+      new CozeWebSDK.AppWebSDK({
+        "token": "pat_********",
+        "appId": "7546449200230367284",
+        "container": "#app",
+        "userInfo": {
+          "id": "",
+          "url": "",
+          "nickname": "User"
+        }
+      });
+    }
+  </script>
 </body>
 </html>

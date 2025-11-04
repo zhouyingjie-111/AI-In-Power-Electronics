@@ -1105,13 +1105,22 @@
             
             try {
                 const response = await fetch(`/api/db/file/info?file=${encodeURIComponent(currentFile)}`);
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
                     generateForm(data.columns);
                     showModal();
+                } else {
+                    showAlert('加载失败: ' + (data.error || '未知错误'), 'error');
                 }
             } catch (error) {
+                console.error('加载文件结构错误:', error);
                 showAlert('加载文件结构失败: ' + error.message, 'error');
             }
         }
@@ -1129,10 +1138,23 @@
             document.getElementById('modal-title').textContent = '✏️ 编辑记录';
             
             try {
-                const infoResponse = await fetch(`/api/file/info?file=${encodeURIComponent(currentFile)}`);
+                // 修复：使用正确的API端点 /api/db/file/info
+                const infoResponse = await fetch(`/api/db/file/info?file=${encodeURIComponent(currentFile)}`);
+                
+                // 检查响应状态
+                if (!infoResponse.ok) {
+                    throw new Error(`HTTP ${infoResponse.status}: ${infoResponse.statusText}`);
+                }
+                
                 const infoData = await infoResponse.json();
                 
                 const dataResponse = await fetch(`/api/db/file/data?file=${encodeURIComponent(currentFile)}&page=1&per_page=10000`);
+                
+                // 检查响应状态
+                if (!dataResponse.ok) {
+                    throw new Error(`HTTP ${dataResponse.status}: ${dataResponse.statusText}`);
+                }
+                
                 const fileData = await dataResponse.json();
                 
                 const record = fileData.data.find(r => r._index === index);
@@ -1145,6 +1167,7 @@
                     showAlert('未找到要编辑的记录', 'error');
                 }
             } catch (error) {
+                console.error('编辑记录错误:', error);
                 showAlert('加载记录失败: ' + error.message, 'error');
             }
         }

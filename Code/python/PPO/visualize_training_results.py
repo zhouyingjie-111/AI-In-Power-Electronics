@@ -28,18 +28,18 @@ class VisualizationConfig:
     HISTORY_PATH = 'E:/AI-based optimized design/Data/Training_History/training_history.npz'
     SAVE_DIR = 'E:/AI-based optimized design/Visualization/'
     
-    # 参数配置
+    # 参数配置（频率固定为500kHz）
+    FIXED_FREQUENCY = 500e3         # 固定开关频率 (Hz)
     PARAM_BOUNDS = {
-        'f(Hz)': (450e3, 550e3),    # 开关频率
-        'L(H)': (1e-6, 2e-6),       # 电感
+        'L(H)': (1e-6, 3e-6),       # 电感
         'C(F)': (8e-6, 10e-6),      # 电容
-        'Ron': (0.01, 0.1),         # 开关管电阻
-        'RL': (0.01, 0.1),          # 电感电阻
+        'Ron': (0.002, 0.005),       # 开关管电阻
+        'RL': (0.0015, 0.1),        # 电感电阻
         'RC': (0.01, 0.2)           # 电容电阻
     }
     
     PARAM_NAMES = list(PARAM_BOUNDS.keys())
-    RIPPLE_THRESHOLD = 0.02
+    RIPPLE_THRESHOLD = 0.005        # 纹波系数上限（0.5%）
     TARGET_EFFICIENCY = 0.95
     
 """加载训练历史数据"""
@@ -92,7 +92,7 @@ def plot_training_overview(data: Dict) -> None:
     # 3. 纹波变化
     axes[0, 2].plot(data['ripple_history'], alpha=0.7, linewidth=1, color='orange')
     axes[0, 2].axhline(y=VisualizationConfig.RIPPLE_THRESHOLD, color='red', 
-                      linestyle='--', alpha=0.7, label='纹波阈值 2%')
+                      linestyle='--', alpha=0.7, label=f'纹波阈值 {VisualizationConfig.RIPPLE_THRESHOLD*100:.1f}%')
     axes[0, 2].set_title('纹波系数变化')
     axes[0, 2].set_xlabel('训练步数')
     axes[0, 2].set_ylabel('纹波系数')
@@ -160,7 +160,7 @@ def plot_performance_analysis(data: Dict) -> None:
     # 2. 纹波分布
     axes[0, 1].hist(data['ripple_history'], bins=50, alpha=0.7, color='orange', edgecolor='black')
     axes[0, 1].axvline(x=VisualizationConfig.RIPPLE_THRESHOLD, color='red', 
-                      linestyle='--', alpha=0.7, label='纹波阈值 2%')
+                      linestyle='--', alpha=0.7, label=f'纹波阈值 {VisualizationConfig.RIPPLE_THRESHOLD*100:.1f}%')
     axes[0, 1].set_title('纹波系数分布')
     axes[0, 1].set_xlabel('纹波系数')
     axes[0, 1].set_ylabel('频次')
@@ -217,16 +217,19 @@ def analyze_optimal_designs(data: Dict) -> None:
     
     print(f"\n🏆 最优设计参数 (奖励: {best_reward:.2f}):")
     print("="*50)
-    for name, value in zip(VisualizationConfig.PARAM_NAMES, best_params):
+    # 显示固定频率
+    print(f"{'f(Hz)':>8}: {VisualizationConfig.FIXED_FREQUENCY:>12.6g}")
+    # 显示可变参数（best_params[0]是频率，从索引1开始是可变参数）
+    for name, value in zip(VisualizationConfig.PARAM_NAMES, best_params[1:]):
         print(f"{name:>8}: {value:>12.6g}")
     print(f"{'效率':>8}: {best_efficiency:>12.4f} ({best_efficiency*100:.2f}%)")
     print(f"{'纹波':>8}: {best_ripple:>12.4f} ({best_ripple*100:.2f}%)")
     print("="*50)
     
-    # 保存最优设计到CSV
+    # 保存最优设计到CSV（包含固定频率和可变参数）
     optimal_design = {
-        'parameter': VisualizationConfig.PARAM_NAMES + ['efficiency', 'ripple', 'reward'],
-        'value': list(best_params) + [best_efficiency, best_ripple, best_reward]
+        'parameter': ['f(Hz)'] + VisualizationConfig.PARAM_NAMES + ['efficiency', 'ripple', 'reward'],
+        'value': [VisualizationConfig.FIXED_FREQUENCY] + list(best_params[1:]) + [best_efficiency, best_ripple, best_reward]
     }
     
     df = pd.DataFrame(optimal_design)
@@ -274,7 +277,8 @@ def generate_summary_report(data: Dict) -> str:
             "- 奖励: {:.2f}".format(best[3]),
             "- 效率: {:.4f} ({:.2f}%)".format(best[1], best[1]*100),
             "- 纹波: {:.4f} ({:.2f}%)".format(best[2], best[2]*100),
-        ] + [f"- {name}: {val:.6g}" for name, val in zip(VisualizationConfig.PARAM_NAMES, best[0])]
+            f"- f(Hz): {VisualizationConfig.FIXED_FREQUENCY:.6g}",
+        ] + [f"- {name}: {val:.6g}" for name, val in zip(VisualizationConfig.PARAM_NAMES, best[0][1:])]
     )
 
     # 生成报告

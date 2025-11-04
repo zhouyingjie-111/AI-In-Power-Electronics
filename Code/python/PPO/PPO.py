@@ -105,12 +105,12 @@ class Config:
     VECNORM_PATH = 'E:/AI-based optimized design/Trained_model/vecnormalize.pkl'
     
     # 交错并联Buck变换器参数设计范围
+    FIXED_FREQUENCY = 500e3         # 固定开关频率 (Hz)
     PARAM_BOUNDS = {
-        'f(Hz)': (450e3, 550e3),    # 开关频率 (Hz)
-        'L(H)': (1e-6, 2e-6),       # 电感 (H)
+        'L(H)': (1e-6, 3e-6),       # 电感 (H)
         'C(F)': (8e-6, 10e-6),      # 电容 (F)
-        'Ron': (0.01, 0.1),         # 开关管导通电阻 (Ω)
-        'RL': (0.01, 0.1),          # 电感等效串联电阻 (Ω)
+        'Ron': (0.002, 0.005),         # 开关管导通电阻 (Ω)
+        'RL': (0.0015, 0.1),          # 电感等效串联电阻 (Ω)
         'RC': (0.01, 0.2)           # 电容等效串联电阻 (Ω)
     }
     
@@ -119,26 +119,26 @@ class Config:
     MIN_EFFICIENCY = 0.75           # 最低效率要求
     MAX_EFFICIENCY = 0.98           # 最高效率限制
     
-    # PPO算法参数
+    # PPO算法参数（优化版）
     PPO_CONFIG = {
-        'learning_rate': 3e-5,      # 更小学习率，稳定更新
+        'learning_rate': 5e-4,      # 提高学习率，加快收敛
         'n_steps': 2048,            # 每次更新收集的步数
-        'batch_size': 512,          # 较大批次，降低方差
-        'n_epochs': 10,             # 每次更新的训练轮数
+        'batch_size': 256,          # 适中批次，平衡速度和稳定性
+        'n_epochs': 15,             # 增加训练轮数，提高样本利用率
         'gamma': 0.99,              # 折扣因子
         'gae_lambda': 0.95,         # GAE参数
-        'clip_range': 0.2,          # 稍大裁剪范围更稳
-        'ent_coef': 0.01,           # 降低熵，促使收敛
+        'clip_range': 0.2,          # 裁剪范围
+        'ent_coef': 0.005,          # 降低熵系数，加快收敛
         'vf_coef': 0.5,             # 价值函数系数
         'max_grad_norm': 0.5        # 梯度裁剪阈值
     }
     
-    # 训练配置
+    # 训练配置（优化版）
     MAX_STEPS_PER_EPISODE = 50      # 每个episode最大步数
     EXPLORATION_RATE = 0.0          # 禁用环境级随机探索（由策略负责）
     SAVE_FREQUENCY = 100            # 历史保存频率
-    EVAL_FREQUENCY = 2000           # 评估频率
-    CHECKPOINT_FREQUENCY = 2000     # 检查点保存频率
+    EVAL_FREQUENCY = 1024           # 提高评估频率，更快发现好模型
+    CHECKPOINT_FREQUENCY = 2048     # 检查点保存频率
 
 """
 加载预训练的代理模型和标准化器
@@ -195,19 +195,22 @@ class BuckConverterEnv(gym.Env):
 		super(BuckConverterEnv, self).__init__()
 		self.track_history = track_history
 		
-		# 动作空间：6维连续动作，范围[-1, 1]
+		# 固定频率
+		self.fixed_frequency = Config.FIXED_FREQUENCY
+		
+		# 动作空间：5维连续动作（移除频率），范围[-1, 1]
 		self.action_space = spaces.Box(
-			low=np.float32(np.array([-1.0] * 6)),
-			high=np.float32(np.array([1.0] * 6)),
+			low=np.float32(np.array([-1.0] * 5)),
+			high=np.float32(np.array([1.0] * 5)),
 			dtype=np.float32
 		)
 		
-		# 观测空间：8维连续状态 
-		# 前6维：设计参数 [f, L, C, Ron, RL, RC];后2维：性能指标 [ripple, efficiency]
+		# 观测空间：7维连续状态 
+		# 前5维：设计参数 [L, C, Ron, RL, RC];后2维：性能指标 [ripple, efficiency]
 		self.observation_space = spaces.Box(
 			low=np.float32(-np.inf),
 			high=np.float32(np.inf),
-			shape=(8,),
+			shape=(7,),
 			dtype=np.float32
 		)
 
@@ -259,7 +262,7 @@ class BuckConverterEnv(gym.Env):
 			print(f"✗ 加载历史记录失败: {e}")
 			self.clear_history()
 	# 保存训练历史记录
-	def save_history(self):
+	def save_history(self, verbose: bool = False):
 	
 		try:
 			if not self.track_history:
@@ -273,7 +276,9 @@ class BuckConverterEnv(gym.Env):
 				diversity_history=np.array(self.diversity_history),
 				boundary_distance_history=np.array(self.boundary_distance_history)
 			)
-			print(f"✓ 已保存训练历史")
+			# 只在 verbose=True 时打印
+			if verbose:
+				print(f"✓ 已保存训练历史（总步数: {self.step_count}）")
 		except Exception as e:
 			print(f"✗ 保存历史记录失败: {e}")
 
@@ -293,13 +298,15 @@ class BuckConverterEnv(gym.Env):
 	"""
 	将动作空间[-1, 1]映射到实际参数范围
 		
-	参数:action: 6维动作向量,范围[-1, 1]
+	参数:action: 5维动作向量,范围[-1, 1]（不包含频率）
 			
-	返回:6维参数向量,对应实际物理参数值
+	返回:6维参数向量,包含固定频率和5个可变参数 [f, L, C, Ron, RL, RC]
 		"""
 	def scale_action_to_params(self, action: np.ndarray) -> np.ndarray:
-
-		return self.param_bounds[:, 0] + (action + 1) * 0.5 * self.param_ranges
+		# 将5维动作映射到实际参数范围
+		params_without_freq = self.param_bounds[:, 0] + (action + 1) * 0.5 * self.param_ranges
+		# 在最前面添加固定频率
+		return np.concatenate([[self.fixed_frequency], params_without_freq])
 
 	"""
 	使用代理模型预测Buck变换器性能指标
@@ -324,7 +331,7 @@ class BuckConverterEnv(gym.Env):
 	"""
 	执行一步环境交互
 		
-	参数:action: 6维动作向量,范围[-1, 1]
+	参数:action: 5维动作向量,范围[-1, 1]（不包含频率）
 			
 	返回:Tuple[新状态, 奖励, 是否终止, 是否截断, 信息字典]
 	"""
@@ -333,9 +340,9 @@ class BuckConverterEnv(gym.Env):
 		
 		# 探索策略：随机探索增强多样性
 		if random.random() < Config.EXPLORATION_RATE:
-			action = np.random.uniform(-1, 1, size=6)
+			action = np.random.uniform(-1, 1, size=5)
 
-		# 动作映射到实际参数
+		# 动作映射到实际参数（包含固定频率）
 		params = self.scale_action_to_params(action)
 		
 		# 使用代理模型预测性能
@@ -349,13 +356,13 @@ class BuckConverterEnv(gym.Env):
 		# 计算多目标奖励函数
 		reward = self._calculate_reward(params, ripple, efficiency, physical_violation)
 
-		# 更新状态和历史记录
-		self.state = np.concatenate([params, [ripple, efficiency]])
+		# 更新状态和历史记录（状态不包含固定频率）
+		self.state = np.concatenate([params[1:], [ripple, efficiency]])
 		self._update_history(params, ripple, efficiency, reward)
 
-		# 定期保存历史（仅训练环境）
+		# 定期保存历史（仅训练环境，静默保存）
 		if self.track_history and self.step_count % Config.SAVE_FREQUENCY == 0:
-			self.save_history()
+			self.save_history(verbose=False)
 
 		# Episode终止条件
 		terminated = False
@@ -373,47 +380,48 @@ class BuckConverterEnv(gym.Env):
 				ripple < 0 or ripple > 0.06)
 
 	"""
-	计算多目标奖励函数
+	计算多目标奖励函数（优化版）
 		
 	奖励组成：
-	1. 效率奖励：鼓励高效率设计
-	2. 纹波惩罚：惩罚超出约束的纹波
+	1. 效率奖励：鼓励高效率设计（权重加大）
+	2. 纹波惩罚：惩罚超出约束的纹波（权重加大）
 	3. 边界奖励：鼓励参数远离边界
 	4. 多样性奖励：鼓励参数多样性
 	"""
 	def _calculate_reward(self, params: np.ndarray, ripple: float, efficiency: float, 
 						 physical_violation: bool) -> float:
-		# 1. 效率奖励（主要目标）
-		eff_reward = 100 * (efficiency - 0.85)  # 基准效率80%
+		# 1. 效率奖励（主要目标，权重加大）
+		eff_reward = 150 * (efficiency - 0.85)  # 基准效率85%，权重从100提高到150
 		
-		# 效率等级奖励
-		if efficiency >= 0.95:
-			eff_reward += 20  # 优秀效率
-		elif efficiency >= 0.92:
-			eff_reward += 10  # 良好效率
+		# 效率等级奖励（增强激励）
+		if efficiency >= 0.96:
+			eff_reward += 30  # 优秀效率（从20提高到30）
+		elif efficiency >= 0.93:
+			eff_reward += 15  # 良好效率（从10提高到15）
 		elif efficiency >= 0.90:
-			eff_reward += 5   # 可接受效率
+			eff_reward += 8   # 可接受效率（从5提高到8）
 
-		# 2. 纹波惩罚
+		# 2. 纹波惩罚（权重加大，更严格）
 		ripple_penalty = 0.0
 		if ripple > self.ripple_threshold:
 			ripple_excess = (ripple - self.ripple_threshold) / self.ripple_threshold
-			ripple_penalty = -1.5 * np.log(1 + ripple_excess)
+			ripple_penalty = -3.0 * np.log(1 + ripple_excess)  # 权重从-1.5提高到-3.0
 
-		# 3. 边界距离奖励（避免参数在边界附近）
+		# 3. 边界距离奖励（避免参数在边界附近，仅考虑可变参数）
+		# params[0]是固定频率，从索引1开始是可变参数
 		min_dist = min(
-			min((params[i] - self.param_bounds[i, 0]) / self.param_ranges[i],
-				(self.param_bounds[i, 1] - params[i]) / self.param_ranges[i])
-			for i in range(len(params))
+			min((params[i+1] - self.param_bounds[i, 0]) / self.param_ranges[i],
+				(self.param_bounds[i, 1] - params[i+1]) / self.param_ranges[i])
+			for i in range(len(self.param_bounds))
 		)
 		boundary_reward = 1.0 * min_dist if min_dist > 0.2 else 0.0
 
 		# 4. 多样性奖励（鼓励参数探索）
 		diversity_bonus = self._calculate_diversity_bonus(params)
 
-		# 物理约束违反惩罚
+		# 物理约束违反惩罚（加大惩罚）
 		if physical_violation:
-			return -10.0
+			return -15.0  # 从-10.0提高到-15.0
 		else:
 			return eff_reward + ripple_penalty + boundary_reward + diversity_bonus
 
@@ -423,10 +431,11 @@ class BuckConverterEnv(gym.Env):
 		if (not self.track_history) or (not self.param_history) or (len(self.param_history) < 5):
 			return 0.0
 			
-		# 与最近5个参数的平均差异
+		# 与最近5个参数的平均差异（仅比较可变参数，跳过固定频率）
 		recent_history = np.array(self.param_history[-5:])
 		avg_params = np.mean(recent_history, axis=0)
-		param_diff = np.abs(params - avg_params) / self.param_ranges
+		# 只比较可变参数（索引1-5），跳过固定频率（索引0）
+		param_diff = np.abs(params[1:] - avg_params[1:]) / self.param_ranges
 		diversity_bonus = min(np.mean(param_diff) * 2.0, 2.0)
 		
 		return diversity_bonus
@@ -440,11 +449,11 @@ class BuckConverterEnv(gym.Env):
 			self.efficiency_history.append(efficiency)
 			self.reward_history.append(reward)
 		
-		# 计算边界距离
+		# 计算边界距离（params[0]是固定频率，从索引1开始是可变参数）
 		min_dist = min(
-			min((params[i] - self.param_bounds[i, 0]) / self.param_ranges[i],
-				(self.param_bounds[i, 1] - params[i]) / self.param_ranges[i])
-			for i in range(len(params))
+			min((params[i+1] - self.param_bounds[i, 0]) / self.param_ranges[i],
+				(self.param_bounds[i, 1] - params[i+1]) / self.param_ranges[i])
+			for i in range(len(self.param_bounds))
 		)
 		if self.track_history:
 			self.boundary_distance_history.append(min_dist)
@@ -488,10 +497,10 @@ class BuckConverterEnv(gym.Env):
 		# 重置episode计数器
 		self.current_step = 0
 
-		# 在合理范围内随机初始化参数
+		# 在合理范围内随机初始化参数（不包含频率）
 		# 选择参数范围的中心区域，避免边界效应
 		random_params = [
-			np.random.uniform(480e3, 520e3),   # 开关频率：中心区域
+			self.fixed_frequency,              # 开关频率：固定500kHz
 			np.random.uniform(1.2e-6, 1.8e-6), # 电感：中心区域
 			np.random.uniform(8.5e-6, 9.5e-6), # 电容：中心区域
 			np.random.uniform(0.02, 0.06),     # 开关管电阻：中心区域
@@ -502,8 +511,8 @@ class BuckConverterEnv(gym.Env):
 		# 预测初始性能
 		ripple, efficiency = self.predict_performance(np.array(random_params))
 		
-		# 构建初始状态
-		self.state = np.concatenate([random_params, [ripple, efficiency]])
+		# 构建初始状态（不包含固定频率，只包含5个可变参数和2个性能指标）
+		self.state = np.concatenate([random_params[1:], [ripple, efficiency]])
 		
 		return self.state, {}
 
@@ -517,8 +526,8 @@ class BuckConverterEnv(gym.Env):
 	def render(self, mode: str = 'human') -> Optional[str]:
 
 		if mode == 'human':
-			params = self.state[:6]
-			ripple, efficiency = self.state[6:]
+			params_without_freq = self.state[:5]
+			ripple, efficiency = self.state[5:]
 			
 			print("\n" + "="*50)
 			print("           Buck变换器设计状态")
@@ -526,7 +535,8 @@ class BuckConverterEnv(gym.Env):
 			print(f"Episode步数: {self.current_step}/{self.max_steps}")
 			print(f"总训练步数: {self.step_count}")
 			print("\n设计参数:")
-			for name, value in zip(self.param_names, params):
+			print(f"  {'f(Hz)':>8}: {self.fixed_frequency:>12.6g}")
+			for name, value in zip(self.param_names, params_without_freq):
 				print(f"  {name:>8}: {value:>12.6g}")
 			
 			print(f"\n性能指标:")
@@ -555,7 +565,7 @@ def create_ppo_model(env) -> PPO:
 	model = PPO(
 		"MlpPolicy",                    # 使用多层感知机策略
 		env,                            # 环境（已监控/归一化）
-		verbose=0,                      # 降低控制台噪声
+		verbose=1,                      # 显示训练进度
 		tensorboard_log=Config.TENSORBOARD_LOG,  # TensorBoard日志
 		**Config.PPO_CONFIG             # 使用配置中的超参数
 	)
@@ -619,7 +629,22 @@ def load_or_create_vec_env(training: bool = True, track_history: bool = True) ->
 			print(f"✓ 已加载VecNormalize统计: {Config.VECNORM_PATH} (training={training})")
 			return vec_env
 		except Exception as e:
-			print(f"✗ 加载VecNormalize失败，使用新统计: {e}")
+			# 检查是否是观测空间不匹配
+			if "observation_space" in str(e).lower() or "shape" in str(e).lower():
+				print(f"⚠️ VecNormalize与当前环境不兼容（观测空间已更改）")
+				print(f"⚠️ 将备份旧文件并创建新的VecNormalize")
+				# 备份旧文件
+				import shutil
+				import time
+				timestamp = time.strftime("%Y%m%d_%H%M%S")
+				backup_path = Config.VECNORM_PATH.replace('.pkl', f'_backup_{timestamp}.pkl')
+				try:
+					shutil.move(Config.VECNORM_PATH, backup_path)
+					print(f"✓ 旧VecNormalize已备份到: {backup_path}")
+				except Exception as backup_error:
+					print(f"⚠️ 备份失败: {backup_error}")
+			else:
+				print(f"✗ 加载VecNormalize失败，使用新统计: {e}")
 	# 新建
 	vec_env = VecNormalize(
 		base_env,
@@ -677,9 +702,16 @@ class CheckpointCallback(BaseCallback):
 		return True
 
 # 创建环境（带VecNormalize与监控）与回调
-env = load_or_create_vec_env(training=True, track_history=True)
-env = VecMonitor(env)
-print("✓ Buck变换器环境创建完成 (VecNormalize)")
+print("正在初始化训练环境...")
+try:
+	env = load_or_create_vec_env(training=True, track_history=True)
+	env = VecMonitor(env)
+	print("✓ Buck变换器环境创建完成 (VecNormalize)")
+except Exception as e:
+	print(f"❌ 环境创建失败: {e}")
+	import traceback
+	traceback.print_exc()
+	raise
 
 # 创建训练回调
 callbacks = create_training_callbacks()
@@ -801,7 +833,7 @@ PPO模型训练主函数
 		
 返回:训练奖励历史
 """
-def train_ppo_model(total_timesteps: int = 24000, batch_size: int = 4096) -> List[float]:
+def train_ppo_model(total_timesteps: int = 36000, batch_size: int = 4096) -> List[float]:
 
 	print("开始PPO训练")
 	print("="*60)
@@ -812,10 +844,49 @@ def train_ppo_model(total_timesteps: int = 24000, batch_size: int = 4096) -> Lis
 	
 	# 检查是否存在检查点
 	if os.path.exists(checkpoint_path + '.zip'):
-		print(f"✓ 发现检查点，从 {checkpoint_path} 恢复训练")
-		model = PPO.load(checkpoint_path, env=env)
-		trained_steps = model.num_timesteps
-		print(f"✓ 已恢复训练，当前步数: {trained_steps}")
+		print(f"✓ 发现检查点: {checkpoint_path}")
+		try:
+			# 尝试加载检查点
+			model = PPO.load(checkpoint_path, env=env)
+			model.verbose = 1  # 设置为显示训练信息
+			trained_steps = model.num_timesteps
+			print(f"✓ 已恢复训练，当前步数: {trained_steps}")
+		except (ValueError, AssertionError) as e:
+			# 观测空间或动作空间不匹配（版本升级导致）
+			if "spaces do not match" in str(e) or "observation_space" in str(e):
+				print(f"⚠️ 检查点与当前环境不兼容（观测空间已更改）")
+				print(f"⚠️ 将备份旧检查点并开始全新训练")
+				
+				# 备份旧文件
+				import shutil
+				import time
+				timestamp = time.strftime("%Y%m%d_%H%M%S")
+				backup_dir = os.path.join(Config.CHECKPOINT_PATH, f'backup_{timestamp}')
+				os.makedirs(backup_dir, exist_ok=True)
+				
+				if os.path.exists(checkpoint_path + '.zip'):
+					shutil.move(checkpoint_path + '.zip', 
+							   os.path.join(backup_dir, 'buck_optimizer_ppo_checkpoint.zip'))
+					print(f"✓ 旧检查点已备份到: {backup_dir}")
+				
+				if os.path.exists(Config.VECNORM_PATH):
+					shutil.move(Config.VECNORM_PATH, 
+							   os.path.join(backup_dir, 'vecnormalize.pkl'))
+					print(f"✓ 旧VecNormalize已备份")
+				
+				# 开始全新训练
+				model = create_ppo_model(env)
+				trained_steps = 0
+				# 清空底层环境历史
+				try:
+					inner_env = get_inner_env(env)
+					inner_env.clear_history()
+					print("✓ 已清空训练历史，开始全新训练")
+				except Exception as e:
+					print(f"⚠️ 无法清空历史(非致命): {e}")
+			else:
+				# 其他错误，重新抛出
+				raise
 	else:
 		print("✓ 开始全新训练会话")
 		model = create_ppo_model(env)
@@ -842,57 +913,73 @@ def train_ppo_model(total_timesteps: int = 24000, batch_size: int = 4096) -> Lis
 
 	# 分批训练
 	for batch in range(batches):
-		print(f"\n🔄 训练批次 {batch+1}/{batches}")
-		print(f"   步数范围: {trained_steps} -> {min(trained_steps + batch_size, total_timesteps)}")
+		print(f"\n{'='*60}")
+		print(f"🔄 训练批次 {batch+1}/{batches}")
+		print(f"   目标步数: {trained_steps} -> {min(trained_steps + batch_size, total_timesteps)}")
+		print(f"{'='*60}")
 
 		current_batch_size = min(batch_size, total_timesteps - trained_steps)
 
 		# 执行训练
+		print(f"\n开始训练 {current_batch_size} 步...")
 		model.learn(
 			total_timesteps=current_batch_size,
 			callback=callbacks,
 			reset_num_timesteps=False,
-			tb_log_name="PPO_Buck1"
+			tb_log_name="PPO_Buck1",
+			progress_bar=True
 		)
 
 		trained_steps = model.num_timesteps
+
+		# 显示训练进度统计
+		try:
+			inner_env = get_inner_env(env)
+			if inner_env.reward_history:
+				recent_rewards = inner_env.reward_history[-100:]
+				recent_efficiency = inner_env.efficiency_history[-100:]
+				recent_ripple = inner_env.ripple_history[-100:]
+				print(f"\n📊 最近100步统计:")
+				print(f"   平均奖励: {np.mean(recent_rewards):>8.2f}")
+				print(f"   平均效率: {np.mean(recent_efficiency):>8.4f} ({np.mean(recent_efficiency)*100:.2f}%)")
+				print(f"   平均纹波: {np.mean(recent_ripple):>8.4f}")
+				print(f"   总训练步数: {inner_env.step_count}")
+		except Exception as e:
+			pass
 
 		# 保存检查点、VecNormalize统计和历史
 		model.save(checkpoint_path)
 		try:
 			os.makedirs(os.path.dirname(Config.VECNORM_PATH), exist_ok=True)
 			env.save(Config.VECNORM_PATH)
-			print(f"✓ 已保存VecNormalize统计: {Config.VECNORM_PATH}")
 		except Exception as e:
 			print(f"✗ 保存VecNormalize失败: {e}")
-		# 保存底层环境历史
+		# 保存底层环境历史（verbose=True 显示保存信息）
 		try:
 			inner_env = get_inner_env(env)
-			inner_env.save_history()
+			inner_env.save_history(verbose=True)
 		except Exception as e:
 			print(f"⚠️ 无法保存历史(非致命): {e}")
-		print(f"✓ 检查点和历史已保存，当前步数: {trained_steps}")
+		print(f"✓ 检查点已保存 -> {checkpoint_path}")
 
 	# 训练完成
 	print("训练完成")
 	print("="*60)
 	
 	# 保存最终模型与VecNormalize统计
+	print("\n保存最终模型...")
 	model.save(ppo_model_path)
 	try:
 		env.save(Config.VECNORM_PATH)
-		print(f"✓ 最终VecNormalize统计已保存: {Config.VECNORM_PATH}")
 	except Exception as e:
 		print(f"✗ 保存最终VecNormalize失败: {e}")
 	# 保存底层环境历史
 	try:
 		inner_env = get_inner_env(env)
-		inner_env.save_history()
+		inner_env.save_history(verbose=True)
 	except Exception as e:
 		print(f"⚠️ 最终保存历史失败(非致命): {e}")
-	# 避免在向量化环境上直接调用 save_history
 	print(f"✓ 最终模型已保存: {ppo_model_path}")
-	print(f"✓ 训练历史已保存，总步数: {trained_steps}")
 	
 	# 生成可视化
 	print("\n📊 生成训练可视化...")
@@ -928,7 +1015,7 @@ def main():
 	# 开始训练
 	try:
 		reward_history = train_ppo_model(
-			total_timesteps=24000,
+			total_timesteps=36000,
 			batch_size=4096
 		)
 		

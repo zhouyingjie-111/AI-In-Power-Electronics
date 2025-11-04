@@ -63,7 +63,7 @@ rng(0);
 
 %% 读取模型
 % 模型路径
-model_path = 'E:\AI-based optimized design\Simulink\Interleaved_parallel_buck';
+model_path = 'E:\AI-based optimized design\Simulink\JCBL_Buck_Verify';
 
 % 读取模型文件
 load_system(model_path)
@@ -187,7 +187,6 @@ for batch = 1:num_batches
         RC_record(i) = RC_optimal;
 
         % 设置Simulink模型变量
-        simIn(num) = simIn(num).setVariable('f', f_record(i));
         simIn(num) = simIn(num).setVariable('L', L_record(i));
         simIn(num) = simIn(num).setVariable('C', C_record(i));
         simIn(num) = simIn(num).setVariable('Ron', Ron_record(i));

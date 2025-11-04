@@ -191,7 +191,7 @@ def main():
     
     # 检查文件路径
     file_name = 'E:/AI-based optimized design/Code/matlab/Optimized_Buck.m'
-    model_path = 'E:/AI-based optimized design/Simulink/Interleaved_parallel_buck'
+    model_path = 'E:/AI-based optimized design/Simulink/JCBL_Buck_Verify'
     
     if not os.path.exists(file_name):
         print(f"✗ 找不到MATLAB脚本文件: {file_name}")
@@ -211,7 +211,7 @@ def main():
         eng.eval("cd('E:/AI-based optimized design/Simulink')", nargout=0)
         
         # 使用相对路径加载Simulink模型
-        model_name = 'Interleaved_parallel_buck'
+        model_name = 'JCBL_Buck_Verify'
         eng.eval(f"load_system('{model_name}')", nargout=0)
         
         # 打开模型界面
