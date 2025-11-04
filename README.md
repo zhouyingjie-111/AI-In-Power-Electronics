@@ -418,7 +418,7 @@ git push origin feature/your-feature-name
 
 ## 📄 License
 
-详见 [LICENSE](LICENSE) 文件。
+详见 [LICENSE]文件。
 
 **⭐ 如果这个项目对您有帮助，请给我们一个Star！⭐**
 
